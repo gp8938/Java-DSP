@@ -39,9 +39,9 @@
                   </Group>
                   <Group type="102" attributes="0">
                       <Group type="103" groupAlignment="0" max="-2" attributes="0">
-                          <Component id="startBut" max="32767" attributes="0"/>
                           <Component id="jLabel4" alignment="0" min="-2" max="-2" attributes="0"/>
                           <Component id="jLabel1" alignment="0" max="32767" attributes="0"/>
+                          <Component id="captureButton" alignment="0" max="32767" attributes="0"/>
                       </Group>
                       <Group type="103" groupAlignment="0" attributes="0">
                           <Group type="102" alignment="0" attributes="0">
@@ -107,9 +107,9 @@
           <Group type="102" alignment="0" attributes="0">
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="startBut" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="bytesjSpinner1" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="jLabel12" alignment="3" max="32767" attributes="0"/>
+                  <Component id="captureButton" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="0" max="-2" attributes="0">
@@ -172,14 +172,6 @@
     </DimensionLayout>
   </Layout>
   <SubComponents>
-    <Component class="javax.swing.JButton" name="startBut">
-      <Properties>
-        <Property name="text" type="java.lang.String" value="Capture Audio"/>
-      </Properties>
-      <Events>
-        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="startButActionPerformed"/>
-      </Events>
-    </Component>
     <Component class="javax.swing.JComboBox" name="freqComboBox">
       <Properties>
         <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
@@ -328,6 +320,14 @@
       <Properties>
         <Property name="text" type="java.lang.String" value="# Byte per Sample"/>
       </Properties>
+    </Component>
+    <Component class="javax.swing.JButton" name="captureButton">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Capture"/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="captureButtonActionPerformed"/>
+      </Events>
     </Component>
   </SubComponents>
 </Form>
