@@ -17,6 +17,7 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.xy.XYSeriesCollection; 
 import javax.swing.JFrame;
 import org.jfree.chart.renderer.xy.StandardXYItemRenderer;
+import org.jfree.chart.renderer.xy.XYSplineRenderer;
 /**
  *
  * @author geoff
@@ -54,7 +55,7 @@ public class XYLineChart{
       //plot.setDomainCrosshairVisible(true);
       //plot.setRangeCrosshairVisible(true);
       NumberAxis range = (NumberAxis) plot.getRangeAxis();
-      range.setRange(-80.0,30);
+      range.setRange(-30.0,70);
       range.setAutoTickUnitSelection(true);
       NumberAxis domain = (NumberAxis) plot.getDomainAxis();
       domain.setAutoTickUnitSelection(true);
@@ -79,7 +80,12 @@ public class XYLineChart{
    private XYDataset createDataset(double[] xy,int Fs ) {
       final XYSeries data= new XYSeries( "data" );
       for (int q =0;q<xy.length;q++){
-        data.add((int)(q*(Fs/(xy.length)))/2, xy[q]-50 );       
+          if(xy[q] == 0){
+              data.add((int)(q*(Fs/(xy.length)))/2, xy[q] );   
+          }
+          else{
+              data.add((int)(q*(Fs/(xy.length)))/2, xy[q]-15 );   
+          }
       }             
       final XYSeriesCollection dataset = new XYSeriesCollection( );          
       dataset.addSeries( data );          
