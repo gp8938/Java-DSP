@@ -12,6 +12,7 @@ import com.nativelibs4java.opencl.CLPlatform.DeviceFeature;
 import com.nativelibs4java.opencl.CLQueue;
 import com.nativelibs4java.opencl.JavaCL;
 import com.nativelibs4java.opencl.util.fft.DoubleFFTPow2;
+import edu.emory.mathcs.backport.java.util.Arrays;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,7 +24,6 @@ import javax.sound.sampled.TargetDataLine;
 import static java.lang.Thread.MAX_PRIORITY;
 import java.util.ArrayList;
 import java.util.List;
-import javax.sound.sampled.AudioInputStream;
 import javax.swing.JOptionPane;
 import org.apache.commons.math3.util.FastMath;
 
@@ -56,7 +56,7 @@ public class GUI extends javax.swing.JFrame {
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
- regenerated AudioByteBuffer the Form Editor.
+     * regenerated AudioByteBuffer the Form Editor.
      */
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -278,55 +278,57 @@ public class GUI extends javax.swing.JFrame {
     private void captureButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_captureButtonActionPerformed
         try {
             //JOptionPane.showMessageDialog(null,"pressed");
-            
-            int sampleRate = (int) this.freqComboBox.getSelectedItem();//get the sample size
+
+            int sampleRate = (int) Integer.parseInt(this.freqComboBox.getSelectedItem().toString());//get the sample size
             int bytes = (int) this.bytesjSpinner1.getValue();//get number of bytes per sample
-            
-            AudioFormat format = new AudioFormat((float) sampleRate, bytes*8, channels, true, true);//set audio capture format:Freq,bit depth(bits),#channels,,
+
+            AudioFormat format = new AudioFormat((float) sampleRate, bytes * 8, channels, true, true);//set audio capture format:Freq,bit depth(bits),#channels,,
             TargetDataLine microphone = AudioSystem.getTargetDataLine(format);//set data source
             microphone.open();//open up port
             microphone.start();//start polling data
-            
+
             this.freqComboBox.setEnabled(false);//disable changing the sample frequency
             this.SampleTextField.setText(String.valueOf((int) (1000000 * (float) 1 / Integer.parseInt(freqComboBox.getSelectedItem().toString()))) + "us");//calculate sample period from sample frequency
             this.BitsTextField.setText(String.valueOf(bits));//set # of bits being collected per channel per sample in GUI
             this.ChannelsTextField.setText(String.valueOf(channels));//set # of channels being collected per sample in GUI
-            
+
             Thread t1 = new Thread(() -> {//create thread
                 FrequencyScanner fs = new FrequencyScanner();//this object takes array, calculates fft, and displays largest magnitude frequency
                 while (open) {//while the fft chart window is open
-                    
+
                     if (microphone.available() >= Integer.parseInt(GUI.this.DFTSizeComboBox.getSelectedItem().toString())) {//if the #of bytes available is larger than what is requested
-                        
+
                         try {
                             AudioByteBuffer = null;//null input byte data array
                             AudioByteBuffer = new byte[(channels * bytes) * Integer.parseInt(this.DFTSizeComboBox.getSelectedItem().toString())];//set input array size AudioByteBuffer taking the #samples * bytes/channel * #channels
                             double[] AudioBuffer = new double[AudioByteBuffer.length / 4];//create a double array for the reconsstructed data value from AudioByteBuffer
+                            double[] FFTBuffer = new double[AudioBuffer.length / 2];
                             microphone.read(AudioByteBuffer, 0, AudioByteBuffer.length); //read to AudioByteBuffer the length of AudioByteBuffer from a offset of 0
+                            int SampleFrame = (channels * bytes);
+                            for (int ByteBufferIndex = 0; ByteBufferIndex < AudioByteBuffer.length; ByteBufferIndex++) {//go through all of the array
 
-                            for (int index = 0; index < AudioByteBuffer.length; index++) {//go through all of the array
-                                
-                                if (!((index << ((channels*bytes)/2) + 1) > AudioByteBuffer.length)) {//if the index doest overflow the byte buffer (index)
+                                for (int index = 0; index < SampleFrame; index++) {//go through the data from all the channels and the byte depth
                                     
-                                    for (int d = 0; d < AudioByteBuffer.length<<2; d++) {//reconstruct original value from the bytes by shifting arthmitic
-                                        
-                                        AudioBuffer[index] = (short) (AudioByteBuffer[index << 1 + 1] + AudioBuffer[index]);
-                                    }
+                                    AudioBuffer[ByteBufferIndex / SampleFrame] += AudioByteBuffer[ByteBufferIndex + (index % 4)];//append data to reconstruct data from bytes
+                                    AudioBuffer[ByteBufferIndex / SampleFrame] /= Math.rint(channels >> 1);//average between the channels
                                 }
-                                GUI.this.freqTextField.setText(String.valueOf((double) fs.extractFrequency(AudioBuffer, sampleRate)) + "Hz");//preform fft and extract max magintude signal
+                                ByteBufferIndex += SampleFrame - 1;//adjust the pointer to the data already collected
                             }
+
+                            GUI.this.freqTextField.setText(String.valueOf((double) fs.extractFrequency(AudioBuffer, sampleRate)) + "Hz");//preform fft and extract max magintude signal
                         } catch (IOException | InterruptedException ex) {
                             Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, null, ex);
                         }
                     }
-                    microphone.stop();//stop audio capture
-                    microphone.flush();//clear audio buffer
-                    microphone.close();//close audio targetDataSource
                 }
+                JOptionPane.showMessageDialog(null, "leaving");
+                microphone.stop();//stop audio capture
+                microphone.flush();//clear audio buffer
+                microphone.close();//close audio targetDataSource
             });
             t1.setPriority(MAX_PRIORITY);//set the thread to have max priority in the CPU
             t1.start();//start this thread
-            
+
         } catch (LineUnavailableException ex) {
             Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -361,22 +363,24 @@ public class GUI extends javax.swing.JFrame {
             long startTime = System.currentTimeMillis();
 
             double[] a = new DoubleFFTPow2(contextpc).transform(queue, sampleData, true);
-
-            /* find the peak magnitude and it's index */
+            double[] b = new double[a.length];
+            /* find the peak magnitude and it's ByteBufferIndex */
             double maxMag = Double.NEGATIVE_INFINITY;
             double maxInd = -1;
             double mag;
 
-            for (int i = 0; i < a.length >> 1; i++) {
-                mag = Math.sqrt(FastMath.pow((a[i << 1]), 2) + FastMath.pow((a[i << 1] + 1), 2));
+            for (int i = 0; i < a.length; i++) {
+                mag = Math.sqrt(FastMath.pow((a[i]), 2) + FastMath.pow((a[i] + 1), 2));
+                b[i] = mag;
                 if (mag > maxMag) {
                     maxMag = mag;
                     maxInd = i;
                 }
             }
+            xy.update("", "", b, sampleRate);
             long endTime = System.currentTimeMillis();
             GUI.this.PeriodTextField.setText(String.valueOf(endTime - startTime) + "ms");
-            return (double) ((sampleRate * maxInd / (a.length / 2)) / 2);
+            return (double) ((sampleRate * maxInd / (a.length)) / 2);
         }
 
         private List<CLDevice> getDevices() {
@@ -431,7 +435,7 @@ public class GUI extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextField BitsTextField;
     private javax.swing.JTextField ChannelsTextField;
-    private javax.swing.JComboBox<String> DFTSizeComboBox;
+    public javax.swing.JComboBox<String> DFTSizeComboBox;
     private javax.swing.JTextField DriverTextField1;
     private javax.swing.JTextField OpenCLTextField;
     private javax.swing.JTextField PeriodTextField;
