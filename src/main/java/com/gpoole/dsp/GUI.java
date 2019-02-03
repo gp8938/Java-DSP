@@ -308,10 +308,13 @@ public class GUI extends javax.swing.JFrame {
                             for (int ByteBufferIndex = 0; ByteBufferIndex < AudioByteBuffer.length; ByteBufferIndex++) {//go through all of the array
 
                                 for (int index = 0; index < SampleFrame; index++) {//go through the data from all the channels and the byte depth
-                                    
-                                    AudioBuffer[ByteBufferIndex / SampleFrame] += AudioByteBuffer[ByteBufferIndex + (index % 4)];//append data to reconstruct data from bytes
-                                    AudioBuffer[ByteBufferIndex / SampleFrame] /= Math.rint(channels >> 1);//average between the channels
+                                    if (index % 2 == 1) {
+                                        AudioBuffer[ByteBufferIndex / SampleFrame] += AudioByteBuffer[ByteBufferIndex + (index % 4)];//append data to reconstruct data from bytes
+                                    } else {
+                                        AudioBuffer[ByteBufferIndex / SampleFrame] += (AudioByteBuffer[ByteBufferIndex + (index % 4)] << 8);//append data to reconstruct data from bytes
+                                    }
                                 }
+                                AudioBuffer[ByteBufferIndex / SampleFrame] /= Math.rint(channels >> 1);//average between the channels
                                 ByteBufferIndex += SampleFrame - 1;//adjust the pointer to the data already collected
                             }
 
@@ -340,7 +343,8 @@ public class GUI extends javax.swing.JFrame {
         CLContext contextpc;
         List<CLDevice> devices;
         private float[] window;
-
+        long lastmean = 0;
+        long nextmean = 0;
         public FrequencyScanner() {
             window = null;
             if (!gotProc) {
@@ -368,15 +372,28 @@ public class GUI extends javax.swing.JFrame {
             double maxMag = Double.NEGATIVE_INFINITY;
             double maxInd = -1;
             double mag;
-
+            long mean = 0;
+            float threshold = (float) 2.0;
             for (int i = 0; i < a.length; i++) {
                 mag = Math.sqrt(FastMath.pow((a[i]), 2) + FastMath.pow((a[i] + 1), 2));
-                b[i] = mag;
-                if (mag > maxMag) {
+                mag = 20 * FastMath.log10(mag / 0.776);
+                mean += FastMath.abs(mag);
+                
+                if((mag*threshold) < lastmean){//noise rejection
+                    b[i] = 0;
+                }
+                else{
+                    b[i] = mag;
+                }
+                
+                if (mag > maxMag) {//find the largest signal by magnitude
                     maxMag = mag;
                     maxInd = i;
                 }
+                
             }
+            lastmean = mean / a.length;
+            //System.out.println("avg: "+ mean);
             xy.update("", "", b, sampleRate);
             long endTime = System.currentTimeMillis();
             GUI.this.PeriodTextField.setText(String.valueOf(endTime - startTime) + "ms");
