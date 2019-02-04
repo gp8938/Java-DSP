@@ -379,12 +379,12 @@ public class GUI extends javax.swing.JFrame {
                 mag = 20 * FastMath.log10(mag / 0.776);
                 mean += FastMath.abs(mag);
                 
-                if((mag*threshold) < lastmean){//noise rejection
+                /*if((mag*threshold) < lastmean){//noise rejection
                     b[i] = 0;
-                }
-                else{
+                }*/
+                //else{
                     b[i] = mag;
-                }
+                //}
                 
                 if (mag > maxMag) {//find the largest signal by magnitude
                     maxMag = mag;
@@ -394,7 +394,7 @@ public class GUI extends javax.swing.JFrame {
             }
             lastmean = mean / a.length;
             //System.out.println("avg: "+ mean);
-            xy.update("", "", b, sampleRate);
+            xy.setData(b, sampleRate);
             long endTime = System.currentTimeMillis();
             GUI.this.PeriodTextField.setText(String.valueOf(endTime - startTime) + "ms");
             return (double) ((sampleRate * maxInd / (a.length)) / 2);
