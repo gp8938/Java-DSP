@@ -12,7 +12,6 @@ import com.nativelibs4java.opencl.CLPlatform.DeviceFeature;
 import com.nativelibs4java.opencl.CLQueue;
 import com.nativelibs4java.opencl.JavaCL;
 import com.nativelibs4java.opencl.util.fft.DoubleFFTPow2;
-import edu.emory.mathcs.backport.java.util.Arrays;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
