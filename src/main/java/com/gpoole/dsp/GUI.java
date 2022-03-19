@@ -5,6 +5,20 @@
  */
 package com.gpoole.dsp;
 
+import static java.lang.Thread.MAX_PRIORITY;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.TargetDataLine;
+import javax.swing.JOptionPane;
+
 import com.nativelibs4java.opencl.CLContext;
 import com.nativelibs4java.opencl.CLDevice;
 import com.nativelibs4java.opencl.CLPlatform;
@@ -12,18 +26,7 @@ import com.nativelibs4java.opencl.CLPlatform.DeviceFeature;
 import com.nativelibs4java.opencl.CLQueue;
 import com.nativelibs4java.opencl.JavaCL;
 import com.nativelibs4java.opencl.util.fft.DoubleFFTPow2;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.TargetDataLine;
 
-import static java.lang.Thread.MAX_PRIORITY;
-import java.util.ArrayList;
-import java.util.List;
-import javax.swing.JOptionPane;
 import org.apache.commons.math3.util.FastMath;
 
 /**
