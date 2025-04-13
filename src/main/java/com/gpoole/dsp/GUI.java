@@ -5,8 +5,6 @@
  */
 package com.gpoole.dsp;
 
-import static java.lang.Thread.MAX_PRIORITY;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +26,20 @@ import com.nativelibs4java.opencl.JavaCL;
 import com.nativelibs4java.opencl.util.fft.DoubleFFTPow2;
 
 import org.apache.commons.math3.util.FastMath;
+
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.BorderLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import javax.swing.BorderFactory;
+
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.Mixer;
+import javax.sound.sampled.Line;
 
 /**
  *
@@ -52,7 +64,7 @@ public class GUI extends javax.swing.JFrame {
     ;
     public GUI() {
         initComponents();
-        this.bytesjSpinner1.setValue(2);
+        this.bytesPerSampleSpinner.setValue(2);
     }
 
     /**
@@ -60,295 +72,302 @@ public class GUI extends javax.swing.JFrame {
      * WARNING: Do NOT modify this code. The content of this method is always
      * regenerated AudioByteBuffer the Form Editor.
      */
-    @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
-
-        freqComboBox = new javax.swing.JComboBox<>();
-        jLabel1 = new javax.swing.JLabel();
-        jLabel2 = new javax.swing.JLabel();
-        DFTSizeComboBox = new javax.swing.JComboBox<>();
-        freqTextField = new javax.swing.JTextField();
-        jLabel3 = new javax.swing.JLabel();
-        jLabel4 = new javax.swing.JLabel();
-        VendorTextField = new javax.swing.JTextField();
-        processorTextField1 = new javax.swing.JTextField();
-        jLabel5 = new javax.swing.JLabel();
-        OpenCLTextField = new javax.swing.JTextField();
-        jLabel6 = new javax.swing.JLabel();
-        DriverTextField1 = new javax.swing.JTextField();
-        jLabel7 = new javax.swing.JLabel();
-        ChannelsTextField = new javax.swing.JTextField();
-        jLabel8 = new javax.swing.JLabel();
-        BitsTextField = new javax.swing.JTextField();
-        jLabel9 = new javax.swing.JLabel();
-        PeriodTextField = new javax.swing.JTextField();
-        jLabel10 = new javax.swing.JLabel();
-        SampleTextField = new javax.swing.JTextField();
-        jLabel11 = new javax.swing.JLabel();
-        bytesjSpinner1 = new javax.swing.JSpinner();
-        jLabel12 = new javax.swing.JLabel();
-        captureButton = new javax.swing.JButton();
-
-        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("Digital Signal Processing");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setResizable(false);
 
-        freqComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "8000", "44100", "48000", "96000" }));
+        // Set layout for the main frame
+        setLayout(new BorderLayout(10, 10));
 
-        jLabel1.setText("Sampling Frequency");
+        // Create main panel with GridBagLayout
+        JPanel mainPanel = new JPanel(new GridBagLayout());
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        jLabel2.setText("FFT Size");
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        DFTSizeComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "16", "32", "64", "128", "256", "512", "1024", "2048", "4096", "8192", "16384", "32768", "65536" }));
-        DFTSizeComboBox.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                DFTSizeComboBoxActionPerformed(evt);
-            }
-        });
+        // Add components to the main panel
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        mainPanel.add(new JLabel("Audio Source:"), gbc);
 
-        freqTextField.setEditable(false);
+        gbc.gridx = 1;
+        audioSourceComboBox = new JComboBox<>();
+        populateAudioSources();
+        audioSourceComboBox.addActionListener(e -> updateSamplingFrequencies());
+        mainPanel.add(audioSourceComboBox, gbc);
 
-        jLabel3.setText("Main Frequency ");
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        mainPanel.add(new JLabel("Sampling Frequency:"), gbc);
 
-        jLabel4.setText("FFT Vendor");
+        gbc.gridx = 1;
+        samplingFrequencyComboBox = new JComboBox<>();
+        mainPanel.add(samplingFrequencyComboBox, gbc);
 
-        VendorTextField.setEditable(false);
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        mainPanel.add(new JLabel("FFT Size:"), gbc);
 
-        processorTextField1.setEditable(false);
+        gbc.gridx = 1;
+        fftSizeComboBox = new JComboBox<>(new String[]{"16", "32", "64", "128", "256", "512", "1024", "2048", "4096", "8192", "16384", "32768", "65536"});
+        mainPanel.add(fftSizeComboBox, gbc);
 
-        jLabel5.setText("FFT Processor");
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        mainPanel.add(new JLabel("Main Frequency:"), gbc);
 
-        OpenCLTextField.setEditable(false);
+        gbc.gridx = 1;
+        mainFrequencyField = createReadOnlyTextField();
+        mainPanel.add(mainFrequencyField, gbc);
 
-        jLabel6.setText("OpenCL Version");
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        mainPanel.add(new JLabel("FFT Vendor:"), gbc);
 
-        DriverTextField1.setEditable(false);
+        gbc.gridx = 1;
+        fftVendorField = createReadOnlyTextField();
+        mainPanel.add(fftVendorField, gbc);
 
-        jLabel7.setText("Driver Version");
+        gbc.gridx = 0;
+        gbc.gridy = 5;
+        mainPanel.add(new JLabel("FFT Processor:"), gbc);
 
-        ChannelsTextField.setEditable(false);
+        gbc.gridx = 1;
+        fftProcessorField = createReadOnlyTextField();
+        mainPanel.add(fftProcessorField, gbc);
 
-        jLabel8.setText("# of Channels");
+        gbc.gridx = 0;
+        gbc.gridy = 6;
+        mainPanel.add(new JLabel("OpenCL Version:"), gbc);
 
-        BitsTextField.setEditable(false);
+        gbc.gridx = 1;
+        openCLVersionField = createReadOnlyTextField();
+        mainPanel.add(openCLVersionField, gbc);
 
-        jLabel9.setText("Bits Per Sample");
+        gbc.gridx = 0;
+        gbc.gridy = 7;
+        mainPanel.add(new JLabel("Driver Version:"), gbc);
 
-        PeriodTextField.setEditable(false);
+        gbc.gridx = 1;
+        driverVersionField = createReadOnlyTextField();
+        mainPanel.add(driverVersionField, gbc);
 
-        jLabel10.setText("Execution Period");
+        gbc.gridx = 0;
+        gbc.gridy = 8;
+        mainPanel.add(new JLabel("Channels:"), gbc);
 
-        SampleTextField.setEditable(false);
+        gbc.gridx = 1;
+        channelsField = createReadOnlyTextField();
+        mainPanel.add(channelsField, gbc);
 
-        jLabel11.setText("Sample Period");
+        gbc.gridx = 0;
+        gbc.gridy = 9;
+        mainPanel.add(new JLabel("Bits Per Sample:"), gbc);
 
-        jLabel12.setText("# Byte per Sample");
+        gbc.gridx = 1;
+        bitsPerSampleField = createReadOnlyTextField();
+        mainPanel.add(bitsPerSampleField, gbc);
 
-        captureButton.setText("Capture");
-        captureButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                captureButtonActionPerformed(evt);
-            }
-        });
+        gbc.gridx = 0;
+        gbc.gridy = 10;
+        mainPanel.add(new JLabel("Execution Period:"), gbc);
 
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
-        getContentPane().setLayout(layout);
-        layout.setHorizontalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel7)
-                        .addGap(42, 42, 42)
-                        .addComponent(DriverTextField1))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel3)
-                        .addGap(31, 31, 31)
-                        .addComponent(freqTextField))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(jLabel4)
-                            .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(captureButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(8, 8, 8)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(VendorTextField)
-                                    .addComponent(processorTextField1)
-                                    .addComponent(OpenCLTextField)))
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                                .addGap(8, 8, 8)
-                                .addComponent(freqComboBox, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(10, 10, 10)
-                                .addComponent(jLabel12, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(bytesjSpinner1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(6, 6, 6))))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 99, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(24, 24, 24)
-                        .addComponent(DFTSizeComboBox, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel8)
-                        .addGap(46, 46, 46)
-                        .addComponent(ChannelsTextField))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel9)
-                        .addGap(32, 32, 32)
-                        .addComponent(BitsTextField))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel10)
-                        .addGap(27, 27, 27)
-                        .addComponent(PeriodTextField))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel5)
-                            .addComponent(jLabel6))
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel11)
-                        .addGap(40, 40, 40)
-                        .addComponent(SampleTextField)))
-                .addContainerGap())
-        );
-        layout.setVerticalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(bytesjSpinner1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel12, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(captureButton))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(freqComboBox)
-                    .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel2)
-                    .addComponent(DFTSizeComboBox))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(VendorTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel4))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel5)
-                    .addComponent(processorTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(OpenCLTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel6))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(DriverTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel7))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(PeriodTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel10))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(SampleTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel11))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(ChannelsTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel8))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(BitsTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel9))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(freqTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel3))
-                .addContainerGap())
-        );
+        gbc.gridx = 1;
+        executionPeriodField = createReadOnlyTextField();
+        mainPanel.add(executionPeriodField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 11;
+        mainPanel.add(new JLabel("Sample Period:"), gbc);
+
+        gbc.gridx = 1;
+        samplePeriodField = createReadOnlyTextField();
+        mainPanel.add(samplePeriodField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 12;
+        mainPanel.add(new JLabel("Bytes Per Sample:"), gbc);
+
+        gbc.gridx = 1;
+        bytesPerSampleSpinner = new JSpinner(new SpinnerNumberModel(2, 1, 4, 1));
+        mainPanel.add(bytesPerSampleSpinner, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 13;
+        gbc.gridwidth = 2;
+        captureButton = new JButton("Capture");
+        captureButton.addActionListener(this::onCaptureButtonClicked);
+        mainPanel.add(captureButton, gbc);
+
+        // Add main panel to the frame
+        add(mainPanel, BorderLayout.CENTER);
 
         pack();
-    }// </editor-fold>//GEN-END:initComponents
+        setLocationRelativeTo(null);
+    }
 
+    private JTextField createReadOnlyTextField() {
+        JTextField textField = new JTextField();
+        textField.setEditable(false);
+        return textField;
+    }
 
-    private void DFTSizeComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_DFTSizeComboBoxActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_DFTSizeComboBoxActionPerformed
+    private void populateAudioSources() {
+        Mixer.Info[] mixers = AudioSystem.getMixerInfo();
+        for (Mixer.Info mixer : mixers) {
+            Mixer selectedMixer = AudioSystem.getMixer(mixer);
+            if (selectedMixer.getTargetLineInfo().length > 0) { // Only add mixers with usable target lines
+                audioSourceComboBox.addItem(mixer.getName());
+            }
+        }
+    }
 
-    private void captureButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_captureButtonActionPerformed
+    private void updateSamplingFrequencies() {
+        samplingFrequencyComboBox.removeAllItems();
+
+        String selectedSource = (String) audioSourceComboBox.getSelectedItem();
+        if (selectedSource == null) {
+            return;
+        }
+
+        Mixer.Info[] mixers = AudioSystem.getMixerInfo();
+        for (Mixer.Info mixer : mixers) {
+            if (mixer.getName().equals(selectedSource)) {
+                Mixer selectedMixer = AudioSystem.getMixer(mixer);
+                Line.Info[] targetLineInfo = selectedMixer.getTargetLineInfo();
+
+                for (Line.Info info : targetLineInfo) {
+                    if (info instanceof DataLine.Info) {
+                        DataLine.Info dataLineInfo = (DataLine.Info) info;
+                        AudioFormat[] formats = dataLineInfo.getFormats();
+
+                        System.out.println("Supported formats for " + selectedSource + ":");
+                        for (AudioFormat format : formats) {
+                            System.out.println(format);
+                            int sampleRate = (int) format.getSampleRate();
+                            if (sampleRate > 0 && format.getEncoding() == AudioFormat.Encoding.PCM_SIGNED) {
+                                samplingFrequencyComboBox.addItem(String.valueOf(sampleRate));
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    private void onCaptureButtonClicked(ActionEvent event) {
         try {
-            //JOptionPane.showMessageDialog(null,"pressed");
+            String selectedSource = (String) audioSourceComboBox.getSelectedItem();
+            if (selectedSource == null) {
+                JOptionPane.showMessageDialog(this, "No audio source selected.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
-            int sampleRate = (int) Integer.parseInt(this.freqComboBox.getSelectedItem().toString());//get the sample size
-            int bytes = (int) this.bytesjSpinner1.getValue();//get number of bytes per sample
+            Mixer.Info[] mixers = AudioSystem.getMixerInfo();
+            Mixer.Info selectedMixerInfo = null;
+            for (Mixer.Info mixer : mixers) {
+                if (mixer.getName().equals(selectedSource)) {
+                    selectedMixerInfo = mixer;
+                    break;
+                }
+            }
 
-            AudioFormat format = new AudioFormat((float) sampleRate, bytes * 8, channels, true, true);//set audio capture format:Freq,bit depth(bits),#channels,,
-            TargetDataLine microphone = AudioSystem.getTargetDataLine(format);//set data source
-            microphone.open();//open up port
-            microphone.start();//start polling data
+            if (selectedMixerInfo == null) {
+                JOptionPane.showMessageDialog(this, "Selected audio source is not available.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
-            this.freqComboBox.setEnabled(false);//disable changing the sample frequency
-            this.SampleTextField.setText(String.valueOf((int) (1000000 * (float) 1 / Integer.parseInt(freqComboBox.getSelectedItem().toString()))) + "us");//calculate sample period from sample frequency
-            this.BitsTextField.setText(String.valueOf(bits));//set # of bits being collected per channel per sample in GUI
-            this.ChannelsTextField.setText(String.valueOf(channels));//set # of channels being collected per sample in GUI
+            Mixer mixer = AudioSystem.getMixer(selectedMixerInfo);
 
-            Thread t1 = new Thread(() -> {//create thread
-                FrequencyScanner fs = new FrequencyScanner();//this object takes array, calculates fft, and displays largest magnitude frequency
-                while (open) {//while the fft chart window is open
+            int sampleRate = Integer.parseInt(this.samplingFrequencyComboBox.getSelectedItem().toString());
+            int bytes = (int) this.bytesPerSampleSpinner.getValue();
 
-                    if (microphone.available() >= Integer.parseInt(GUI.this.DFTSizeComboBox.getSelectedItem().toString())) {//if the #of bytes available is larger than what is requested
+            // Marked requestedFormat as final to resolve the finality issue
+            final AudioFormat requestedFormat = new AudioFormat((float) sampleRate, bytes * 8, channels, true, true);
 
+            // Introduced a new variable for reassignment to resolve the finality issue
+            AudioFormat fallbackFormat = requestedFormat;
+            if (!mixer.isLineSupported(new DataLine.Info(TargetDataLine.class, fallbackFormat))) {
+                System.err.println("Unsupported format: " + fallbackFormat);
+
+                // Fallback to the first supported format
+                Line.Info[] targetLineInfo = mixer.getTargetLineInfo();
+                for (Line.Info info : targetLineInfo) {
+                    if (info instanceof DataLine.Info) {
+                        DataLine.Info dataLineInfo = (DataLine.Info) info;
+                        AudioFormat[] formats = dataLineInfo.getFormats();
+
+                        for (AudioFormat format : formats) {
+                            if (format.getEncoding() == AudioFormat.Encoding.PCM_SIGNED && format.getSampleRate() > 0) {
+                                System.out.println("Falling back to supported format: " + format);
+                                fallbackFormat = format;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // If no supported format is found, show an error
+                if (!mixer.isLineSupported(new DataLine.Info(TargetDataLine.class, fallbackFormat))) {
+                    JOptionPane.showMessageDialog(this, "No supported audio format found for the selected source.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+
+            TargetDataLine microphone = (TargetDataLine) mixer.getLine(new DataLine.Info(TargetDataLine.class, fallbackFormat));
+            microphone.open();
+            microphone.start();
+
+            this.samplingFrequencyComboBox.setEnabled(false);
+            this.samplePeriodField.setText(String.valueOf((int) (1000000 * (float) 1 / requestedFormat.getSampleRate())) + "us");
+            this.bitsPerSampleField.setText(String.valueOf(requestedFormat.getSampleSizeInBits()));
+            this.channelsField.setText(String.valueOf(requestedFormat.getChannels()));
+
+            Thread t1 = new Thread(() -> {
+                FrequencyScanner fs = new FrequencyScanner();
+                while (open) {
+                    if (microphone.available() >= Integer.parseInt(GUI.this.fftSizeComboBox.getSelectedItem().toString())) {
                         try {
-                            AudioByteBuffer = null;//null input byte data array
-                            AudioByteBuffer = new byte[(channels * bytes) * Integer.parseInt(this.DFTSizeComboBox.getSelectedItem().toString())];//set input array size AudioByteBuffer taking the #samples * bytes/channel * #channels
-                            double[] AudioBuffer = new double[AudioByteBuffer.length / 4];//create a double array for the reconsstructed data value from AudioByteBuffer
-                            double[] FFTBuffer = new double[AudioBuffer.length / 2];
-                            microphone.read(AudioByteBuffer, 0, AudioByteBuffer.length); //read to AudioByteBuffer the length of AudioByteBuffer from a offset of 0
-                            int SampleFrame = (channels * bytes);
-                            for (int ByteBufferIndex = 0; ByteBufferIndex < AudioByteBuffer.length; ByteBufferIndex++) {//go through all of the array
+                            AudioByteBuffer = new byte[(channels * bytes) * Integer.parseInt(this.fftSizeComboBox.getSelectedItem().toString())];
+                            double[] AudioBuffer = new double[AudioByteBuffer.length / 4];
+                            microphone.read(AudioByteBuffer, 0, AudioByteBuffer.length);
 
-                                for (int index = 0; index < SampleFrame; index++) {//go through the data from all the channels and the byte depth
-                                    if (index % 2 == 1) {
-                                        AudioBuffer[ByteBufferIndex / SampleFrame] += AudioByteBuffer[ByteBufferIndex + (index % 4)];//append data to reconstruct data from bytes
-                                    } else {
-                                        AudioBuffer[ByteBufferIndex / SampleFrame] += (AudioByteBuffer[ByteBufferIndex + (index % 4)] << 8);//append data to reconstruct data from bytes
-                                    }
-                                }
-                                AudioBuffer[ByteBufferIndex / SampleFrame] /= Math.rint(channels >> 1);//average between the channels
-                                ByteBufferIndex += SampleFrame - 1;//adjust the pointer to the data already collected
+                            for (int i = 0; i < AudioBuffer.length; i++) {
+                                AudioBuffer[i] = AudioByteBuffer[i * 2] << 8 | (AudioByteBuffer[i * 2 + 1] & 0xFF);
                             }
 
-                            GUI.this.freqTextField.setText(String.valueOf((double) fs.extractFrequency(AudioBuffer, sampleRate)) + "Hz");//preform fft and extract max magintude signal
+                            GUI.this.mainFrequencyField.setText(String.valueOf(fs.extractFrequency(AudioBuffer, (int) requestedFormat.getSampleRate())) + "Hz");
                         } catch (IOException | InterruptedException ex) {
                             Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, null, ex);
                         }
                     }
                 }
-                JOptionPane.showMessageDialog(null, "leaving");
-                microphone.stop();//stop audio capture
-                microphone.flush();//clear audio buffer
-                microphone.close();//close audio targetDataSource
+                microphone.stop();
+                microphone.flush();
+                microphone.close();
             });
-            t1.setPriority(MAX_PRIORITY);//set the thread to have max priority in the CPU
-            t1.start();//start this thread
+            t1.setPriority(Thread.MAX_PRIORITY);
+            t1.start();
 
         } catch (LineUnavailableException ex) {
             Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(this, "Unable to access the audio input device.", "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
 
-    }//GEN-LAST:event_captureButtonActionPerformed
     public class FrequencyScanner {
 
         CLQueue queue;
         CLContext contextpc;
         List<CLDevice> devices;
-        private float[] window;
         long lastmean = 0;
         long nextmean = 0;
         public FrequencyScanner() {
-            window = null;
             if (!gotProc) {
                 devices = getDevices();
                 contextpc = JavaCL.createBestContext(DeviceFeature.Accelerator);
@@ -375,7 +394,6 @@ public class GUI extends javax.swing.JFrame {
             double maxInd = -1;
             double mag;
             long mean = 0;
-            float threshold = (float) 2.0;
             for (int i = 0; i < a.length; i++) {
                 mag = Math.sqrt(FastMath.pow((a[i]), 2) + FastMath.pow((a[i] + 1), 2));
                 mag = 20 * FastMath.log10(mag / 0.776);
@@ -398,7 +416,7 @@ public class GUI extends javax.swing.JFrame {
             //System.out.println("avg: "+ mean);
             xy.setData(b, sampleRate);
             long endTime = System.currentTimeMillis();
-            GUI.this.PeriodTextField.setText(String.valueOf(endTime - startTime) + "ms");
+            GUI.this.executionPeriodField.setText(String.valueOf(endTime - startTime) + "ms");
             return (double) ((sampleRate * maxInd / (a.length)) / 2);
         }
 
@@ -407,10 +425,10 @@ public class GUI extends javax.swing.JFrame {
             for (CLPlatform platform : JavaCL.listPlatforms()) {
                 for (CLDevice device : platform.listAllDevices(true)) {
                     devices.add(device);
-                    GUI.this.VendorTextField.setText(device.getVendor());
-                    GUI.this.processorTextField1.setText(device.getName());
-                    GUI.this.OpenCLTextField.setText(device.getOpenCLCVersion());
-                    GUI.this.DriverTextField1.setText(device.getDriverVersion());
+                    GUI.this.fftVendorField.setText(device.getVendor());
+                    GUI.this.fftProcessorField.setText(device.getName());
+                    GUI.this.openCLVersionField.setText(device.getOpenCLCVersion());
+                    GUI.this.driverVersionField.setText(device.getDriverVersion());
                 }
             }
             return devices;
@@ -418,64 +436,40 @@ public class GUI extends javax.swing.JFrame {
 
     }
 
-    public static void main(String args[]) {
-        /* Set the Nimbus look and feel */
-        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-         */
+    public static void main(String[] args) {
+        /* Set the look and feel based on system dark mode */
         try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
+            boolean isDarkMode = java.awt.Toolkit.getDefaultToolkit().getDesktopProperty("win.darkMode") != null;
+            if (isDarkMode) {
+                UIManager.setLookAndFeel(new FlatDarkLaf());
+            } else {
+                UIManager.setLookAndFeel(new FlatLightLaf());
             }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(GUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(GUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(GUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
+        } catch (Exception ex) {
             java.util.logging.Logger.getLogger(GUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
-        //</editor-fold>
-        //</editor-fold>
-        //</editor-fold>
-        //</editor-fold>
 
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(() -> {
-            new GUI().setVisible(true);
+        /* Ensure only one instance of the GUI is created */
+        SwingUtilities.invokeLater(() -> {
+            GUI gui = new GUI();
+            gui.setVisible(true);
         });
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JTextField BitsTextField;
-    private javax.swing.JTextField ChannelsTextField;
-    public javax.swing.JComboBox<String> DFTSizeComboBox;
-    private javax.swing.JTextField DriverTextField1;
-    private javax.swing.JTextField OpenCLTextField;
-    private javax.swing.JTextField PeriodTextField;
-    private javax.swing.JTextField SampleTextField;
-    private javax.swing.JTextField VendorTextField;
-    private javax.swing.JSpinner bytesjSpinner1;
+    private javax.swing.JTextField bitsPerSampleField;
+    private javax.swing.JTextField channelsField;
+    public javax.swing.JComboBox<String> fftSizeComboBox;
+    private javax.swing.JTextField driverVersionField;
+    private javax.swing.JTextField openCLVersionField;
+    private javax.swing.JTextField executionPeriodField;
+    private javax.swing.JTextField samplePeriodField;
+    private javax.swing.JTextField fftVendorField;
+    private javax.swing.JSpinner bytesPerSampleSpinner;
     private javax.swing.JButton captureButton;
-    private javax.swing.JComboBox<String> freqComboBox;
-    private javax.swing.JTextField freqTextField;
-    private javax.swing.JLabel jLabel1;
-    private javax.swing.JLabel jLabel10;
-    private javax.swing.JLabel jLabel11;
-    private javax.swing.JLabel jLabel12;
-    private javax.swing.JLabel jLabel2;
-    private javax.swing.JLabel jLabel3;
-    private javax.swing.JLabel jLabel4;
-    private javax.swing.JLabel jLabel5;
-    private javax.swing.JLabel jLabel6;
-    private javax.swing.JLabel jLabel7;
-    private javax.swing.JLabel jLabel8;
-    private javax.swing.JLabel jLabel9;
-    private javax.swing.JTextField processorTextField1;
+    private javax.swing.JComboBox<String> samplingFrequencyComboBox;
+    private javax.swing.JTextField mainFrequencyField;
+    private javax.swing.JTextField fftProcessorField;
+    private javax.swing.JComboBox<String> audioSourceComboBox;
     // End of variables declaration//GEN-END:variables
 }

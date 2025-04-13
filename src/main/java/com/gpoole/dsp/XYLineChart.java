@@ -28,48 +28,51 @@ import org.jfree.data.xy.XYSeriesCollection;
  */
 public class XYLineChart {
 
-    JFreeChart xylineChart;
-    ChartPanel chartPanel;
-    JFrame frame = new JFrame("Charts");
-    double[] xy;
-    int Fs;
+    private JFreeChart xyLineChart;
+    private ChartPanel chartPanel;
+    private JFrame chartFrame = new JFrame("Frequency Chart");
+    private double[] frequencyData;
+    private int samplingRate;
 
     public XYLineChart(String chartTitle) {
-        chartPanel = new ChartPanel(xylineChart);
+        chartPanel = new ChartPanel(xyLineChart);
         chartPanel.setAutoscrolls(true);
-
         chartPanel.setPreferredSize(new Dimension(1366, 768));
 
-        frame.setAutoRequestFocus(false);
-        frame.setVisible(true);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        Thread repaint = new Thread(() -> {
+        chartFrame.setAutoRequestFocus(false);
+        chartFrame.setVisible(true);
+        chartFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        Thread repaintThread = new Thread(() -> {
             while (true) {
-                if (xy != null) {
-                    xylineChart = ChartFactory.createXYLineChart(
+                if (frequencyData != null) {
+                    xyLineChart = ChartFactory.createXYLineChart(
                             chartTitle,
-                            "Freq (Hz)",
-                            "Power (Db)",
-                            createDataset(xy, Fs),
+                            "Frequency (Hz)",
+                            "Power (dB)",
+                            createDataset(frequencyData, samplingRate),
                             PlotOrientation.VERTICAL,
                             true, true, false);
-                    chartPanel.setChart(xylineChart);
-                    XYPlot plot = xylineChart.getXYPlot();
+                    chartPanel.setChart(xyLineChart);
+                    XYPlot plot = xyLineChart.getXYPlot();
 
-                    NumberAxis range = (NumberAxis) plot.getRangeAxis();
-                    range.setRange(-30.0, 70);
-                    range.setAutoTickUnitSelection(true);
-                    NumberAxis domain = (NumberAxis) plot.getDomainAxis();
-                    domain.setAutoTickUnitSelection(true);
-                    domain.setVerticalTickLabels(true);
+                    NumberAxis rangeAxis = (NumberAxis) plot.getRangeAxis();
+                    rangeAxis.setRange(-30.0, 70);
+                    rangeAxis.setAutoTickUnitSelection(true);
+
+                    NumberAxis domainAxis = (NumberAxis) plot.getDomainAxis();
+                    domainAxis.setAutoTickUnitSelection(true);
+                    domainAxis.setVerticalTickLabels(true);
+
                     StandardXYItemRenderer renderer = new StandardXYItemRenderer();
                     renderer.setAutoPopulateSeriesStroke(true);
                     renderer.setAutoPopulateSeriesShape(true);
                     plot.setRenderer(renderer);
+
                     chartPanel.repaint();
-                    frame.getContentPane().add(chartPanel);
-                    frame.pack();
-                    frame.repaint();
+                    chartFrame.getContentPane().add(chartPanel);
+                    chartFrame.pack();
+                    chartFrame.repaint();
                 }
                 try {
                     Thread.sleep(100);
@@ -78,25 +81,23 @@ public class XYLineChart {
                 }
             }
         });
-        repaint.start();
+        repaintThread.start();
     }
 
-    public void setData(double[] inxy, int inFs) {
-        xy = inxy;
-        Fs = inFs;
+    public void setData(double[] data, int rate) {
+        frequencyData = data;
+        samplingRate = rate;
     }
 
-    private XYDataset createDataset(double[] xy, int Fs) {
-        final XYSeries data = new XYSeries("data");
-        for (int q = 0; q < xy.length; q++) {
-            if (xy[q] == 0) {
-                data.add((int) (q * (Fs / (xy.length))) / 2, xy[q]);
-            } else {
-                data.add((int) (q * (Fs / (xy.length))) / 2, xy[q] - 15);
-            }
+    private XYDataset createDataset(double[] data, int rate) {
+        final XYSeries series = new XYSeries("Frequency Data");
+        for (int i = 0; i < data.length; i++) {
+            double frequency = (i * (rate / (double) data.length)) / 2;
+            double power = data[i] == 0 ? 0 : data[i] - 15;
+            series.add(frequency, power);
         }
         final XYSeriesCollection dataset = new XYSeriesCollection();
-        dataset.addSeries(data);
+        dataset.addSeries(series);
         return dataset;
     }
 }
