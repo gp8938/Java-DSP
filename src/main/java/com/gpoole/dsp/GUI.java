@@ -6,8 +6,6 @@
 package com.gpoole.dsp;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,14 +15,9 @@ import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.TargetDataLine;
 import javax.swing.JOptionPane;
 
-import com.nativelibs4java.opencl.CLContext;
-import com.nativelibs4java.opencl.CLDevice;
-import com.nativelibs4java.opencl.CLPlatform;
-import com.nativelibs4java.opencl.CLPlatform.DeviceFeature;
-import com.nativelibs4java.opencl.CLQueue;
-import com.nativelibs4java.opencl.JavaCL;
-import com.nativelibs4java.opencl.util.fft.DoubleFFTPow2;
-
+import org.apache.commons.math3.transform.DftNormalization;
+import org.apache.commons.math3.transform.FastFourierTransformer;
+import org.apache.commons.math3.transform.TransformType;
 import org.apache.commons.math3.util.FastMath;
 
 import javax.swing.*;
@@ -51,11 +44,12 @@ public class GUI extends javax.swing.JFrame {
      * Creates new form GUI
      */
     boolean open = true;
+    private boolean isCapturing = false;
+    private Thread captureThread = null;
     byte[] AudioByteBuffer;
     double[] input;
     long fftcalctime;
-    boolean gotProc = false;
-    DoubleFFTPow2 fft1;
+    FastFourierTransformer fft;
     XYLineChart xy = new XYLineChart("Chart");
 
     byte bits = 16;
@@ -76,7 +70,8 @@ public class GUI extends javax.swing.JFrame {
     private void initComponents() {
         setTitle("Digital Signal Processing");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setResizable(false);
+        setResizable(true);
+        setMinimumSize(new java.awt.Dimension(450, 500));
 
         // Set layout for the main frame
         setLayout(new BorderLayout(10, 10));
@@ -88,6 +83,7 @@ public class GUI extends javax.swing.JFrame {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
 
         // Add components to the main panel
         gbc.gridx = 0;
@@ -96,8 +92,6 @@ public class GUI extends javax.swing.JFrame {
 
         gbc.gridx = 1;
         audioSourceComboBox = new JComboBox<>();
-        populateAudioSources();
-        audioSourceComboBox.addActionListener(e -> updateSamplingFrequencies());
         mainPanel.add(audioSourceComboBox, gbc);
 
         gbc.gridx = 0;
@@ -198,16 +192,33 @@ public class GUI extends javax.swing.JFrame {
 
         gbc.gridx = 0;
         gbc.gridy = 13;
-        gbc.gridwidth = 2;
-        captureButton = new JButton("Capture");
+        gbc.gridwidth = 1;
+        captureButton = new JButton("Start Capture");
         captureButton.addActionListener(this::onCaptureButtonClicked);
         mainPanel.add(captureButton, gbc);
+
+        gbc.gridx = 1;
+        stopButton = new JButton("Stop");
+        stopButton.setEnabled(false);
+        stopButton.addActionListener(this::onStopButtonClicked);
+        mainPanel.add(stopButton, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 14;
+        gbc.gridwidth = 2;
+        statusLabel = new JLabel("Ready");
+        statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        mainPanel.add(statusLabel, gbc);
 
         // Add main panel to the frame
         add(mainPanel, BorderLayout.CENTER);
 
         pack();
         setLocationRelativeTo(null);
+        
+        // Populate audio sources after UI is initialized
+        populateAudioSources();
+        audioSourceComboBox.addActionListener(e -> updateSamplingFrequencies());
     }
 
     private JTextField createReadOnlyTextField() {
@@ -217,12 +228,32 @@ public class GUI extends javax.swing.JFrame {
     }
 
     private void populateAudioSources() {
-        Mixer.Info[] mixers = AudioSystem.getMixerInfo();
-        for (Mixer.Info mixer : mixers) {
-            Mixer selectedMixer = AudioSystem.getMixer(mixer);
-            if (selectedMixer.getTargetLineInfo().length > 0) { // Only add mixers with usable target lines
-                audioSourceComboBox.addItem(mixer.getName());
+        try {
+            Mixer.Info[] mixers = AudioSystem.getMixerInfo();
+            int addedCount = 0;
+            for (Mixer.Info mixer : mixers) {
+                try {
+                    Mixer selectedMixer = AudioSystem.getMixer(mixer);
+                    if (selectedMixer.getTargetLineInfo().length > 0) {
+                        audioSourceComboBox.addItem(mixer.getName());
+                        addedCount++;
+                    }
+                } catch (Exception e) {
+                    // Skip mixers that can't be accessed
+                    System.err.println("Could not access mixer: " + mixer.getName());
+                }
             }
+            
+            if (addedCount == 0) {
+                statusLabel.setText("Warning: No audio input devices found");
+            } else {
+                // Auto-select first available source
+                audioSourceComboBox.setSelectedIndex(0);
+                updateSamplingFrequencies();
+            }
+        } catch (Exception e) {
+            statusLabel.setText("Error: Could not enumerate audio devices");
+            Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, "Failed to populate audio sources", e);
         }
     }
 
@@ -234,37 +265,70 @@ public class GUI extends javax.swing.JFrame {
             return;
         }
 
-        Mixer.Info[] mixers = AudioSystem.getMixerInfo();
-        for (Mixer.Info mixer : mixers) {
-            if (mixer.getName().equals(selectedSource)) {
-                Mixer selectedMixer = AudioSystem.getMixer(mixer);
-                Line.Info[] targetLineInfo = selectedMixer.getTargetLineInfo();
+        try {
+            Mixer.Info[] mixers = AudioSystem.getMixerInfo();
+            for (Mixer.Info mixer : mixers) {
+                if (mixer.getName().equals(selectedSource)) {
+                    Mixer selectedMixer = AudioSystem.getMixer(mixer);
+                    Line.Info[] targetLineInfo = selectedMixer.getTargetLineInfo();
 
-                for (Line.Info info : targetLineInfo) {
-                    if (info instanceof DataLine.Info) {
-                        DataLine.Info dataLineInfo = (DataLine.Info) info;
-                        AudioFormat[] formats = dataLineInfo.getFormats();
+                    java.util.Set<String> uniqueRates = new java.util.LinkedHashSet<>();
+                    for (Line.Info info : targetLineInfo) {
+                        if (info instanceof DataLine.Info dataLineInfo) {
+                            AudioFormat[] formats = dataLineInfo.getFormats();
 
-                        System.out.println("Supported formats for " + selectedSource + ":");
-                        for (AudioFormat format : formats) {
-                            System.out.println(format);
-                            int sampleRate = (int) format.getSampleRate();
-                            if (sampleRate > 0 && format.getEncoding() == AudioFormat.Encoding.PCM_SIGNED) {
-                                samplingFrequencyComboBox.addItem(String.valueOf(sampleRate));
+                            for (AudioFormat format : formats) {
+                                int sampleRate = (int) format.getSampleRate();
+                                if (sampleRate > 0 && format.getEncoding() == AudioFormat.Encoding.PCM_SIGNED) {
+                                    uniqueRates.add(String.valueOf(sampleRate));
+                                }
                             }
                         }
                     }
+                    
+                    // Add sorted sample rates
+                    uniqueRates.stream().sorted((a, b) -> Integer.compare(Integer.parseInt(a), Integer.parseInt(b)))
+                              .forEach(samplingFrequencyComboBox::addItem);
+                    
+                    // Select 48000 if available, otherwise first item
+                    if (uniqueRates.contains("48000")) {
+                        samplingFrequencyComboBox.setSelectedItem("48000");
+                    } else if (samplingFrequencyComboBox.getItemCount() > 0) {
+                        samplingFrequencyComboBox.setSelectedIndex(0);
+                    }
+                    break;
                 }
-                break;
             }
+        } catch (Exception e) {
+            statusLabel.setText("Error: Could not get sampling frequencies");
+            Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, "Failed to update sampling frequencies", e);
         }
     }
 
+    private void onStopButtonClicked(ActionEvent event) {
+        isCapturing = false;
+        captureButton.setEnabled(true);
+        stopButton.setEnabled(false);
+        audioSourceComboBox.setEnabled(true);
+        samplingFrequencyComboBox.setEnabled(true);
+        fftSizeComboBox.setEnabled(true);
+        statusLabel.setText("Stopped");
+    }
+
     private void onCaptureButtonClicked(ActionEvent event) {
+        if (isCapturing) {
+            return; // Already capturing
+        }
+
         try {
             String selectedSource = (String) audioSourceComboBox.getSelectedItem();
             if (selectedSource == null) {
-                JOptionPane.showMessageDialog(this, "No audio source selected.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "No audio source selected.\nPlease select an audio input device.", "No Audio Source", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            if (samplingFrequencyComboBox.getItemCount() == 0) {
+                JOptionPane.showMessageDialog(this, "No sampling frequencies available for this device.\nPlease select a different audio source.", "Configuration Error", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
@@ -278,43 +342,38 @@ public class GUI extends javax.swing.JFrame {
             }
 
             if (selectedMixerInfo == null) {
-                JOptionPane.showMessageDialog(this, "Selected audio source is not available.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Selected audio source is no longer available.\nDevice may have been disconnected.", "Device Unavailable", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
             Mixer mixer = AudioSystem.getMixer(selectedMixerInfo);
 
             int sampleRate = Integer.parseInt(this.samplingFrequencyComboBox.getSelectedItem().toString());
-            int bytes = (int) this.bytesPerSampleSpinner.getValue();
+            final int bytes = (int) this.bytesPerSampleSpinner.getValue();
 
-            // Marked requestedFormat as final to resolve the finality issue
             final AudioFormat requestedFormat = new AudioFormat((float) sampleRate, bytes * 8, channels, true, true);
 
-            // Introduced a new variable for reassignment to resolve the finality issue
             AudioFormat fallbackFormat = requestedFormat;
             if (!mixer.isLineSupported(new DataLine.Info(TargetDataLine.class, fallbackFormat))) {
-                System.err.println("Unsupported format: " + fallbackFormat);
-
-                // Fallback to the first supported format
                 Line.Info[] targetLineInfo = mixer.getTargetLineInfo();
+                boolean foundFormat = false;
                 for (Line.Info info : targetLineInfo) {
-                    if (info instanceof DataLine.Info) {
-                        DataLine.Info dataLineInfo = (DataLine.Info) info;
+                    if (info instanceof DataLine.Info dataLineInfo) {
                         AudioFormat[] formats = dataLineInfo.getFormats();
 
                         for (AudioFormat format : formats) {
                             if (format.getEncoding() == AudioFormat.Encoding.PCM_SIGNED && format.getSampleRate() > 0) {
-                                System.out.println("Falling back to supported format: " + format);
                                 fallbackFormat = format;
+                                foundFormat = true;
                                 break;
                             }
                         }
+                        if (foundFormat) break;
                     }
                 }
 
-                // If no supported format is found, show an error
                 if (!mixer.isLineSupported(new DataLine.Info(TargetDataLine.class, fallbackFormat))) {
-                    JOptionPane.showMessageDialog(this, "No supported audio format found for the selected source.", "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, "No supported audio format found for this device.\nTry a different sample rate or audio source.", "Unsupported Format", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
             }
@@ -323,56 +382,144 @@ public class GUI extends javax.swing.JFrame {
             microphone.open();
             microphone.start();
 
-            this.samplingFrequencyComboBox.setEnabled(false);
-            this.samplePeriodField.setText(String.valueOf((int) (1000000 * (float) 1 / requestedFormat.getSampleRate())) + "us");
-            this.bitsPerSampleField.setText(String.valueOf(requestedFormat.getSampleSizeInBits()));
-            this.channelsField.setText(String.valueOf(requestedFormat.getChannels()));
+            // Make final copies for lambda
+            final AudioFormat finalFormat = fallbackFormat;
+            final TargetDataLine mic = microphone;
 
-            Thread t1 = new Thread(() -> {
+            // Update UI state
+            isCapturing = true;
+            captureButton.setEnabled(false);
+            stopButton.setEnabled(true);
+            audioSourceComboBox.setEnabled(false);
+            samplingFrequencyComboBox.setEnabled(false);
+            fftSizeComboBox.setEnabled(false);
+            statusLabel.setText("Capturing...");
+            
+            this.samplePeriodField.setText(String.format("%.2f us", 1000000.0 / finalFormat.getSampleRate()));
+            this.bitsPerSampleField.setText(String.valueOf(finalFormat.getSampleSizeInBits()));
+            this.channelsField.setText(String.valueOf(finalFormat.getChannels()));
+
+            captureThread = new Thread(() -> {
                 FrequencyScanner fs = new FrequencyScanner();
-                while (open) {
-                    if (microphone.available() >= Integer.parseInt(GUI.this.fftSizeComboBox.getSelectedItem().toString())) {
+                final int bytesPerSample = bytes; // Make final for lambda
+                while (isCapturing) {
+                    int fftSize = Integer.parseInt(GUI.this.fftSizeComboBox.getSelectedItem().toString());
+                    int bytesNeeded = (channels * bytesPerSample) * fftSize;
+                    if (mic.available() >= bytesNeeded) {
                         try {
-                            AudioByteBuffer = new byte[(channels * bytes) * Integer.parseInt(this.fftSizeComboBox.getSelectedItem().toString())];
-                            double[] AudioBuffer = new double[AudioByteBuffer.length / 4];
-                            microphone.read(AudioByteBuffer, 0, AudioByteBuffer.length);
+                            AudioByteBuffer = new byte[bytesNeeded];
+                            double[] AudioBuffer = new double[fftSize];
+                            mic.read(AudioByteBuffer, 0, AudioByteBuffer.length);
 
-                            for (int i = 0; i < AudioBuffer.length; i++) {
-                                AudioBuffer[i] = AudioByteBuffer[i * 2] << 8 | (AudioByteBuffer[i * 2 + 1] & 0xFF);
+                            // Convert bytes to samples, handling stereo by averaging channels
+                            for (int i = 0; i < fftSize; i++) {
+                                if (channels == 2) {
+                                    // Stereo: average left and right channels
+                                    int leftSample = (AudioByteBuffer[i * bytesPerSample * 2] << 8) | (AudioByteBuffer[i * bytesPerSample * 2 + 1] & 0xFF);
+                                    int rightSample = (AudioByteBuffer[i * bytesPerSample * 2 + bytesPerSample] << 8) | (AudioByteBuffer[i * bytesPerSample * 2 + bytesPerSample + 1] & 0xFF);
+                                    AudioBuffer[i] = (leftSample + rightSample) / 2.0;
+                                } else {
+                                    // Mono
+                                    AudioBuffer[i] = (AudioByteBuffer[i * bytesPerSample] << 8) | (AudioByteBuffer[i * bytesPerSample + 1] & 0xFF);
+                                }
                             }
 
-                            GUI.this.mainFrequencyField.setText(String.valueOf(fs.extractFrequency(AudioBuffer, (int) requestedFormat.getSampleRate())) + "Hz");
-                        } catch (IOException | InterruptedException ex) {
-                            Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, null, ex);
+                            // Apply Hamming window
+                            applyHammingWindow(AudioBuffer);
+
+                            double frequency = fs.extractFrequency(AudioBuffer, (int) finalFormat.getSampleRate());
+                            GUI.this.mainFrequencyField.setText(String.format("%.2f Hz", frequency));
+                        } catch (Exception ex) {
+                            if (isCapturing) {
+                                Logger.getLogger(GUI.class.getName()).log(Level.WARNING, "Error during capture", ex);
+                            }
+                        }
+                    } else {
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            break;
                         }
                     }
                 }
-                microphone.stop();
-                microphone.flush();
-                microphone.close();
+                try {
+                    mic.stop();
+                    mic.flush();
+                    mic.close();
+                } catch (Exception e) {
+                    Logger.getLogger(GUI.class.getName()).log(Level.WARNING, "Error closing microphone", e);
+                }
+                SwingUtilities.invokeLater(() -> {
+                    statusLabel.setText("Ready");
+                });
             });
-            t1.setPriority(Thread.MAX_PRIORITY);
-            t1.start();
+            captureThread.setPriority(Thread.NORM_PRIORITY);
+            captureThread.setName("AudioCaptureThread");
+            captureThread.start();
 
         } catch (LineUnavailableException ex) {
-            Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(this, "Unable to access the audio input device.", "Error", JOptionPane.ERROR_MESSAGE);
+            isCapturing = false;
+            captureButton.setEnabled(true);
+            stopButton.setEnabled(false);
+            audioSourceComboBox.setEnabled(true);
+            samplingFrequencyComboBox.setEnabled(true);
+            fftSizeComboBox.setEnabled(true);
+            statusLabel.setText("Error: Device unavailable");
+            Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, "Audio line unavailable", ex);
+            JOptionPane.showMessageDialog(this, 
+                "Unable to access the audio input device.\n" +
+                "The device may be in use by another application.\n" +
+                "Error: " + ex.getMessage(), 
+                "Audio Device Error", 
+                JOptionPane.ERROR_MESSAGE);
+        } catch (Exception ex) {
+            isCapturing = false;
+            captureButton.setEnabled(true);
+            stopButton.setEnabled(false);
+            audioSourceComboBox.setEnabled(true);
+            samplingFrequencyComboBox.setEnabled(true);
+            fftSizeComboBox.setEnabled(true);
+            statusLabel.setText("Error occurred");
+            Logger.getLogger(GUI.class.getName()).log(Level.SEVERE, "Unexpected error during capture", ex);
+            JOptionPane.showMessageDialog(this, 
+                "An unexpected error occurred.\n" +
+                "Error: " + ex.getMessage(), 
+                "Error", 
+                JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Apply Hamming window to reduce spectral leakage in FFT
+     * @param samples The audio samples to window
+     */
+    private void applyHammingWindow(double[] samples) {
+        int n = samples.length;
+        for (int i = 0; i < n; i++) {
+            double window = 0.54 - 0.46 * Math.cos(2.0 * Math.PI * i / (n - 1));
+            samples[i] *= window;
         }
     }
 
     public class FrequencyScanner {
 
-        CLQueue queue;
-        CLContext contextpc;
-        List<CLDevice> devices;
         long lastmean = 0;
         long nextmean = 0;
+        FastFourierTransformer fft;
+        private double[] recentFrequencies = new double[5]; // For smoothing
+        private int freqIndex = 0;
+        private double lastFrequency = 0;
+        
         public FrequencyScanner() {
-            if (!gotProc) {
-                devices = getDevices();
-                contextpc = JavaCL.createBestContext(DeviceFeature.Accelerator);
-                queue = contextpc.createDefaultOutOfOrderQueueIfPossible();
-            }
+            fft = new FastFourierTransformer(DftNormalization.STANDARD);
+            updateDeviceInfo();
+        }
+        
+        private void updateDeviceInfo() {
+            GUI.this.fftVendorField.setText("Apache Commons Math");
+            GUI.this.fftProcessorField.setText("Pure Java FFT");
+            GUI.this.openCLVersionField.setText("N/A");
+            GUI.this.driverVersionField.setText("N/A");
         }
 
         /**
@@ -387,51 +534,76 @@ public class GUI extends javax.swing.JFrame {
         public double extractFrequency(double[] sampleData, int sampleRate) throws InterruptedException, IOException {
             long startTime = System.currentTimeMillis();
 
-            double[] a = new DoubleFFTPow2(contextpc).transform(queue, sampleData, true);
-            double[] b = new double[a.length];
-            /* find the peak magnitude and it's ByteBufferIndex */
+            // Ensure the data length is a power of 2
+            int n = sampleData.length;
+            int powerOf2 = 1;
+            while (powerOf2 < n) {
+                powerOf2 *= 2;
+            }
+            double[] paddedData = new double[powerOf2];
+            System.arraycopy(sampleData, 0, paddedData, 0, n);
+            
+            // Perform FFT
+            org.apache.commons.math3.complex.Complex[] fftResult = fft.transform(paddedData, TransformType.FORWARD);
+            double[] b = new double[fftResult.length / 2];
+            /* find the peak magnitude and it's index */
             double maxMag = Double.NEGATIVE_INFINITY;
             double maxInd = -1;
             double mag;
             long mean = 0;
-            for (int i = 0; i < a.length; i++) {
-                mag = Math.sqrt(FastMath.pow((a[i]), 2) + FastMath.pow((a[i] + 1), 2));
-                mag = 20 * FastMath.log10(mag / 0.776);
-                mean += FastMath.abs(mag);
-                
-                /*if((mag*threshold) < lastmean){//noise rejection
-                    b[i] = 0;
-                }*/
-                //else{
-                    b[i] = mag;
-                //}
-                
-                if (mag > maxMag) {//find the largest signal by magnitude
-                    maxMag = mag;
+            
+            // Calculate magnitudes and find mean
+            for (int i = 1; i < fftResult.length / 2; i++) { // Start from 1 to skip DC component
+                double real = fftResult[i].getReal();
+                double imag = fftResult[i].getImaginary();
+                mag = Math.sqrt(real * real + imag * imag);
+                mean += mag;
+                b[i] = mag;
+            }
+            
+            double avgMag = mean / (double)(fftResult.length / 2 - 1);
+            double threshold = avgMag * 3.0; // Noise threshold - signal must be 3x average
+            
+            // Find peak above threshold
+            for (int i = 1; i < fftResult.length / 2; i++) {
+                if (b[i] > threshold && b[i] > maxMag) {
+                    maxMag = b[i];
                     maxInd = i;
                 }
-                
             }
-            lastmean = mean / a.length;
-            //System.out.println("avg: "+ mean);
+            
+            // Convert magnitudes to dB for display
+            for (int i = 0; i < b.length; i++) {
+                if (b[i] > 0) {
+                    b[i] = 20 * FastMath.log10(b[i] / 0.776);
+                } else {
+                    b[i] = -100; // Very low value for zero magnitude
+                }
+            }
+            
             xy.setData(b, sampleRate);
             long endTime = System.currentTimeMillis();
             GUI.this.executionPeriodField.setText(String.valueOf(endTime - startTime) + "ms");
-            return (double) ((sampleRate * maxInd / (a.length)) / 2);
-        }
-
-        private List<CLDevice> getDevices() {
-            List<CLDevice> devices = new ArrayList<>();
-            for (CLPlatform platform : JavaCL.listPlatforms()) {
-                for (CLDevice device : platform.listAllDevices(true)) {
-                    devices.add(device);
-                    GUI.this.fftVendorField.setText(device.getVendor());
-                    GUI.this.fftProcessorField.setText(device.getName());
-                    GUI.this.openCLVersionField.setText(device.getOpenCLCVersion());
-                    GUI.this.driverVersionField.setText(device.getDriverVersion());
+            
+            // Calculate frequency and apply smoothing
+            if (maxInd > 0) {
+                double frequency = (double) (sampleRate * maxInd / fftResult.length);
+                
+                // Smooth frequency by averaging recent values
+                recentFrequencies[freqIndex] = frequency;
+                freqIndex = (freqIndex + 1) % recentFrequencies.length;
+                
+                double smoothedFreq = 0;
+                for (double f : recentFrequencies) {
+                    smoothedFreq += f;
                 }
+                smoothedFreq /= recentFrequencies.length;
+                
+                lastFrequency = smoothedFreq;
+                return smoothedFreq;
             }
-            return devices;
+            
+            return lastFrequency; // Return last valid frequency if no peak found
         }
 
     }
@@ -467,6 +639,8 @@ public class GUI extends javax.swing.JFrame {
     private javax.swing.JTextField fftVendorField;
     private javax.swing.JSpinner bytesPerSampleSpinner;
     private javax.swing.JButton captureButton;
+    private javax.swing.JButton stopButton;
+    private javax.swing.JLabel statusLabel;
     private javax.swing.JComboBox<String> samplingFrequencyComboBox;
     private javax.swing.JTextField mainFrequencyField;
     private javax.swing.JTextField fftProcessorField;
