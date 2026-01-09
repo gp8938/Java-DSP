@@ -30,12 +30,12 @@
                   <Group type="102" attributes="0">
                       <Component id="jLabel7" min="-2" max="-2" attributes="0"/>
                       <EmptySpace min="-2" pref="42" max="-2" attributes="0"/>
-                      <Component id="DriverTextField1" max="32767" attributes="0"/>
+                      <Component id="driverVersionField" max="32767" attributes="0"/>
                   </Group>
                   <Group type="102" alignment="0" attributes="0">
                       <Component id="jLabel3" min="-2" max="-2" attributes="0"/>
                       <EmptySpace min="-2" pref="31" max="-2" attributes="0"/>
-                      <Component id="freqTextField" max="32767" attributes="0"/>
+                      <Component id="mainFrequencyField" max="32767" attributes="0"/>
                   </Group>
                   <Group type="102" attributes="0">
                       <Group type="103" groupAlignment="0" max="-2" attributes="0">
@@ -47,20 +47,20 @@
                           <Group type="102" alignment="0" attributes="0">
                               <EmptySpace min="-2" pref="8" max="-2" attributes="0"/>
                               <Group type="103" groupAlignment="0" attributes="0">
-                                  <Component id="VendorTextField" max="32767" attributes="0"/>
-                                  <Component id="processorTextField1" max="32767" attributes="0"/>
-                                  <Component id="OpenCLTextField" alignment="0" max="32767" attributes="0"/>
+                                  <Component id="fftVendorField" max="32767" attributes="0"/>
+                                  <Component id="fftProcessorField" max="32767" attributes="0"/>
+                                  <Component id="openCLVersionField" alignment="0" max="32767" attributes="0"/>
                               </Group>
                           </Group>
                           <Group type="102" alignment="1" attributes="0">
                               <EmptySpace min="-2" pref="8" max="-2" attributes="0"/>
-                              <Component id="freqComboBox" max="32767" attributes="0"/>
+                              <Component id="samplingFrequencyComboBox" max="32767" attributes="0"/>
                           </Group>
                           <Group type="102" alignment="0" attributes="0">
                               <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
                               <Component id="jLabel12" max="32767" attributes="0"/>
                               <EmptySpace max="-2" attributes="0"/>
-                              <Component id="bytesjSpinner1" min="-2" max="-2" attributes="0"/>
+                              <Component id="bytesPerSampleSpinner" min="-2" max="-2" attributes="0"/>
                               <EmptySpace min="-2" pref="6" max="-2" attributes="0"/>
                           </Group>
                       </Group>
@@ -68,22 +68,22 @@
                   <Group type="102" attributes="0">
                       <Component id="jLabel2" min="-2" pref="99" max="-2" attributes="0"/>
                       <EmptySpace min="-2" pref="24" max="-2" attributes="0"/>
-                      <Component id="DFTSizeComboBox" max="32767" attributes="0"/>
+                      <Component id="fftSizeComboBox" max="32767" attributes="0"/>
                   </Group>
                   <Group type="102" alignment="0" attributes="0">
                       <Component id="jLabel8" min="-2" max="-2" attributes="0"/>
                       <EmptySpace min="-2" pref="46" max="-2" attributes="0"/>
-                      <Component id="ChannelsTextField" max="32767" attributes="0"/>
+                      <Component id="channelsField" max="32767" attributes="0"/>
                   </Group>
                   <Group type="102" alignment="0" attributes="0">
                       <Component id="jLabel9" min="-2" max="-2" attributes="0"/>
                       <EmptySpace min="-2" pref="32" max="-2" attributes="0"/>
-                      <Component id="BitsTextField" max="32767" attributes="0"/>
+                      <Component id="bitsPerSampleField" max="32767" attributes="0"/>
                   </Group>
                   <Group type="102" alignment="0" attributes="0">
                       <Component id="jLabel10" min="-2" max="-2" attributes="0"/>
                       <EmptySpace min="-2" pref="27" max="-2" attributes="0"/>
-                      <Component id="PeriodTextField" max="32767" attributes="0"/>
+                      <Component id="executionPeriodField" max="32767" attributes="0"/>
                   </Group>
                   <Group type="102" attributes="0">
                       <Group type="103" groupAlignment="0" attributes="0">
@@ -95,7 +95,7 @@
                   <Group type="102" alignment="0" attributes="0">
                       <Component id="jLabel11" min="-2" max="-2" attributes="0"/>
                       <EmptySpace min="-2" pref="40" max="-2" attributes="0"/>
-                      <Component id="SampleTextField" max="32767" attributes="0"/>
+                      <Component id="samplePeriodField" max="32767" attributes="0"/>
                   </Group>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
@@ -107,63 +107,63 @@
           <Group type="102" alignment="0" attributes="0">
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="bytesjSpinner1" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="bytesPerSampleSpinner" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="jLabel12" alignment="3" max="32767" attributes="0"/>
                   <Component id="captureButton" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="0" max="-2" attributes="0">
-                  <Component id="freqComboBox" max="32767" attributes="0"/>
+                  <Component id="samplingFrequencyComboBox" max="32767" attributes="0"/>
                   <Component id="jLabel1" max="32767" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component id="jLabel2" alignment="3" min="-2" max="-2" attributes="0"/>
-                  <Component id="DFTSizeComboBox" alignment="3" max="32767" attributes="0"/>
+                  <Component id="fftSizeComboBox" alignment="3" max="32767" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="VendorTextField" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="fftVendorField" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="jLabel4" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component id="jLabel5" alignment="3" min="-2" max="-2" attributes="0"/>
-                  <Component id="processorTextField1" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="fftProcessorField" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="OpenCLTextField" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="openCLVersionField" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="jLabel6" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="DriverTextField1" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="driverVersionField" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="jLabel7" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="PeriodTextField" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="executionPeriodField" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="jLabel10" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="SampleTextField" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="samplePeriodField" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="jLabel11" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="ChannelsTextField" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="channelsField" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="jLabel8" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="BitsTextField" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="bitsPerSampleField" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="jLabel9" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="freqTextField" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="mainFrequencyField" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="jLabel3" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace min="-2" max="-2" attributes="0"/>
@@ -172,7 +172,7 @@
     </DimensionLayout>
   </Layout>
   <SubComponents>
-    <Component class="javax.swing.JComboBox" name="freqComboBox">
+    <Component class="javax.swing.JComboBox" name="samplingFrequencyComboBox">
       <Properties>
         <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
           <StringArray count="4">
@@ -197,7 +197,7 @@
         <Property name="text" type="java.lang.String" value="FFT Size"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JComboBox" name="DFTSizeComboBox">
+    <Component class="javax.swing.JComboBox" name="fftSizeComboBox">
       <Properties>
         <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
           <StringArray count="13">
@@ -218,14 +218,14 @@
         </Property>
       </Properties>
       <Events>
-        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="DFTSizeComboBoxActionPerformed"/>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="fftSizeComboBoxActionPerformed"/>
       </Events>
       <AuxValues>
         <AuxValue name="JavaCodeGenerator_TypeParameters" type="java.lang.String" value="&lt;String&gt;"/>
         <AuxValue name="JavaCodeGenerator_VariableModifier" type="java.lang.Integer" value="1"/>
       </AuxValues>
     </Component>
-    <Component class="javax.swing.JTextField" name="freqTextField">
+    <Component class="javax.swing.JTextField" name="mainFrequencyField">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>
@@ -240,12 +240,12 @@
         <Property name="text" type="java.lang.String" value="FFT Vendor"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JTextField" name="VendorTextField">
+    <Component class="javax.swing.JTextField" name="fftVendorField">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JTextField" name="processorTextField1">
+    <Component class="javax.swing.JTextField" name="fftProcessorField">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>
@@ -255,7 +255,7 @@
         <Property name="text" type="java.lang.String" value="FFT Processor"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JTextField" name="OpenCLTextField">
+    <Component class="javax.swing.JTextField" name="openCLVersionField">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>
@@ -265,7 +265,7 @@
         <Property name="text" type="java.lang.String" value="OpenCL Version"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JTextField" name="DriverTextField1">
+    <Component class="javax.swing.JTextField" name="driverVersionField">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>
@@ -275,7 +275,7 @@
         <Property name="text" type="java.lang.String" value="Driver Version"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JTextField" name="ChannelsTextField">
+    <Component class="javax.swing.JTextField" name="channelsField">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>
@@ -285,7 +285,7 @@
         <Property name="text" type="java.lang.String" value="# of Channels"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JTextField" name="BitsTextField">
+    <Component class="javax.swing.JTextField" name="bitsPerSampleField">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>
@@ -295,7 +295,7 @@
         <Property name="text" type="java.lang.String" value="Bits Per Sample"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JTextField" name="PeriodTextField">
+    <Component class="javax.swing.JTextField" name="executionPeriodField">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>
@@ -305,7 +305,7 @@
         <Property name="text" type="java.lang.String" value="Execution Period"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JTextField" name="SampleTextField">
+    <Component class="javax.swing.JTextField" name="samplePeriodField">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>
@@ -315,7 +315,7 @@
         <Property name="text" type="java.lang.String" value="Sample Period"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JSpinner" name="bytesjSpinner1">
+    <Component class="javax.swing.JSpinner" name="bytesPerSampleSpinner">
     </Component>
     <Component class="javax.swing.JLabel" name="jLabel12">
       <Properties>
