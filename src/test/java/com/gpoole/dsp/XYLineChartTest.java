@@ -1,21 +1,25 @@
 package com.gpoole.dsp;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import javax.swing.JFrame;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for XYLineChart visualization component
+ * These tests are skipped in headless environments (CI)
  */
 public class XYLineChartTest {
 
     @Test
+    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
     public void testChartCreation() {
         XYLineChart chart = new XYLineChart("Test Chart");
         assertNotNull(chart, "Chart should be created successfully");
     }
 
     @Test
+    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
     public void testDataUpdate() {
         XYLineChart chart = new XYLineChart("Test Chart");
         
@@ -32,6 +36,7 @@ public class XYLineChartTest {
     }
 
     @Test
+    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
     public void testEmptyDataHandling() {
         XYLineChart chart = new XYLineChart("Test Chart");
         
@@ -43,6 +48,7 @@ public class XYLineChartTest {
     }
 
     @Test
+    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
     public void testLargeDataSet() {
         XYLineChart chart = new XYLineChart("Test Chart");
         
@@ -60,6 +66,7 @@ public class XYLineChartTest {
     }
 
     @Test
+    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
     public void testChartThrottling() throws InterruptedException {
         XYLineChart chart = new XYLineChart("Test Chart");
         
@@ -83,6 +90,7 @@ public class XYLineChartTest {
     }
 
     @Test
+    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
     public void testMultipleSampleRates() {
         XYLineChart chart = new XYLineChart("Test Chart");
         

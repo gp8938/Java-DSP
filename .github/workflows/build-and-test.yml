@@ -30,6 +30,8 @@ jobs:
     
     - name: Run tests
       run: mvn test
+      env:
+        MAVEN_OPTS: "-Djava.awt.headless=true"
     
     - name: Generate test report
       if: always()
