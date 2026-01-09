@@ -241,8 +241,7 @@ public class GUI extends javax.swing.JFrame {
                 Line.Info[] targetLineInfo = selectedMixer.getTargetLineInfo();
 
                 for (Line.Info info : targetLineInfo) {
-                    if (info instanceof DataLine.Info) {
-                        DataLine.Info dataLineInfo = (DataLine.Info) info;
+                    if (info instanceof DataLine.Info dataLineInfo) {
                         AudioFormat[] formats = dataLineInfo.getFormats();
 
                         System.out.println("Supported formats for " + selectedSource + ":");
@@ -298,8 +297,7 @@ public class GUI extends javax.swing.JFrame {
                 // Fallback to the first supported format
                 Line.Info[] targetLineInfo = mixer.getTargetLineInfo();
                 for (Line.Info info : targetLineInfo) {
-                    if (info instanceof DataLine.Info) {
-                        DataLine.Info dataLineInfo = (DataLine.Info) info;
+                    if (info instanceof DataLine.Info dataLineInfo) {
                         AudioFormat[] formats = dataLineInfo.getFormats();
 
                         for (AudioFormat format : formats) {
