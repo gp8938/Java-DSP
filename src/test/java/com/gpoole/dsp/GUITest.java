@@ -1,6 +1,7 @@
 package com.gpoole.dsp;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import javax.sound.sampled.*;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -8,7 +9,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class GUITest {
 
+    static boolean audioAvailable() {
+        try {
+            AudioFormat format = new AudioFormat(48000.0f, 16, 1, true, false);
+            DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+            return AudioSystem.isLineSupported(info);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @Test
+    @EnabledIf("audioAvailable")
     public void testSyntheticAudioSource() throws Exception {
         // Create a synthetic audio source (sine wave)
         float sampleRate = 48000.0f;
