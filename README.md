@@ -81,8 +81,32 @@ Noise Filtering → DC Removal → Frequency Smoothing → Visualization
 
 - **GUI.java**: Main application window with audio capture and control logic
 - **XYLineChart.java**: Optimized chart component with update throttling
+- **DSP.java**: Static utility class for FFT, power spectra, and frequency detection
+- **SignalPipeline.java**: Fluent builder API for chaining DSP operations
+- **WindowFunction.java**: Enum of standard window functions (Hamming, Hanning, Blackman, Flat-top)
+- **Preconditions.java**: Shared input-validation utility for fail-fast error reporting
 - **FFT Processing**: Apache Commons Math FastFourierTransformer
 - **Audio API**: javax.sound.sampled for cross-platform audio capture
+
+### Programmatic DSP API
+
+You can use the signal-processing classes directly, without the GUI:
+
+```java
+import com.gpoole.dsp.signal.*;
+
+// One-shot: detect the dominant frequency of an audio buffer
+double freq = DSP.dominantFrequency(samples, 48_000);
+
+// Pipeline: chain window → DC removal → power spectrum
+double[] spectrum = SignalPipeline.of(samples, 48_000)
+        .window(WindowFunction.HAMMING)
+        .removeDC()
+        .executeToPowerSpectrumDB(0.776);
+
+// Available windows: RECTANGULAR, HAMMING, HANNING, BLACKMAN, FLAT_TOP
+double[] coefficients = WindowFunction.BLACKMAN.getCoefficients(1024);
+```
 
 ### Dependencies
 
@@ -129,12 +153,24 @@ mvn test
 Java-DSP/
 ├── src/
 │   ├── main/java/com/gpoole/dsp/
-│   │   ├── GUI.java              # Main application
-│   │   └── XYLineChart.java      # Chart component
+│   │   ├── GUI.java                     # Main application
+│   │   ├── XYLineChart.java             # Chart component
+│   │   ├── signal/
+│   │   │   ├── DSP.java                 # Static DSP helpers (FFT, spectra)
+│   │   │   ├── SignalPipeline.java       # Fluent pipeline builder
+│   │   │   └── WindowFunction.java       # Window function enum
+│   │   └── util/
+│   │       └── Preconditions.java        # Input validation
 │   └── test/java/com/gpoole/dsp/
 │       ├── FFTProcessingTest.java
 │       ├── AudioFormatTest.java
-│       └── XYLineChartTest.java
+│       ├── XYLineChartTest.java
+│       ├── signal/
+│       │   ├── DSPTest.java              # Golden-value FFT tests
+│       │   ├── SignalPipelineTest.java
+│       │   └── WindowFunctionTest.java
+│       └── util/
+│           └── PreconditionsTest.java
 ├── .github/workflows/
 │   ├── build-and-test.yml        # CI pipeline
 │   ├── release.yml               # Release automation
@@ -162,15 +198,14 @@ This automatically triggers the release workflow, building artifacts for all pla
 
 ## Recent Improvements
 
+- ✅ Extracted reusable `DSP` utility class with static FFT/spectrum helpers
+- ✅ Added `SignalPipeline` fluent API for chaining DSP operations
+- ✅ Added `WindowFunction` enum with Hamming, Hanning, Blackman, Flat-top windows
+- ✅ Added `Preconditions` utility for fail-fast input validation
+- ✅ Added JaCoCo code-coverage reporting
+- ✅ Added golden-value parameterized tests for FFT accuracy
+- ✅ Added comprehensive Javadoc across all public APIs
 - ✅ Fixed audio buffer calculation for stereo/mono handling
-- ✅ Replaced OpenCL with pure Java FFT (Apple Silicon compatible)
-- ✅ Implemented Hamming windowing for better frequency resolution
-- ✅ Added frequency smoothing and noise threshold for stable readings
-- ✅ Enhanced UI with Stop button and status indicators
-- ✅ Optimized chart performance with throttled updates
-- ✅ Improved error handling throughout the application
-- ✅ Added comprehensive test coverage
-- ✅ Set up automated CI/CD pipeline
 
 ## Troubleshooting
 

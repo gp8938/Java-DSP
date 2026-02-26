@@ -23,8 +23,15 @@ import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
 /**
+ * Live XY line chart for displaying the audio frequency spectrum.
+ * <p>
+ * Updates are throttled to at most once every {@value #UPDATE_INTERVAL_MS} ms
+ * so that rapid calls to {@link #setData(double[], int)} do not flood the
+ * Swing event dispatch thread.
+ * </p>
  *
  * @author geoff
+ * @see GUI
  */
 public class XYLineChart {
 

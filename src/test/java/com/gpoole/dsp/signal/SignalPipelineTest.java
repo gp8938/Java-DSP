@@ -1,0 +1,120 @@
+package com.gpoole.dsp.signal;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Tests for the {@link SignalPipeline} fluent API.
+ */
+class SignalPipelineTest {
+
+    @Test
+    void emptyPipelineReturnsCloneOfInput() {
+        double[] input = {1, 2, 3, 4};
+        double[] output = SignalPipeline.of(input, 48_000).execute();
+        assertArrayEquals(input, output, 1e-15);
+        assertNotSame(input, output, "Must return a clone, not the original");
+    }
+
+    @Test
+    void windowStageAppliesWindow() {
+        double[] ones = {1, 1, 1, 1, 1, 1, 1, 1};
+        double[] result = SignalPipeline.of(ones, 48_000)
+                .window(WindowFunction.HANNING)
+                .execute();
+        assertEquals(0.0, result[0], 1e-10, "Hanning edge should be 0");
+        assertTrue(result[4] > 0.5, "Hanning centre should be high");
+    }
+
+    @Test
+    void removeDCCentresMean() {
+        double[] biased = {10, 12, 10, 12, 10, 12, 10, 12};
+        double[] result = SignalPipeline.of(biased, 48_000)
+                .removeDC()
+                .execute();
+        double mean = 0;
+        for (double v : result) mean += v;
+        mean /= result.length;
+        assertEquals(0.0, mean, 1e-10, "Mean should be zero after DC removal");
+    }
+
+    @Test
+    void normaliseScalesToOne() {
+        double[] signal = {0, 5, -10, 3};
+        double[] result = SignalPipeline.of(signal, 48_000)
+                .normalise()
+                .execute();
+        double peak = 0;
+        for (double v : result) peak = Math.max(peak, Math.abs(v));
+        assertEquals(1.0, peak, 1e-15);
+    }
+
+    @Test
+    void zeroPadPipeline() {
+        double[] signal = new double[500];
+        double[] result = SignalPipeline.of(signal, 48_000)
+                .zeroPad()
+                .execute();
+        assertEquals(512, result.length);
+    }
+
+    @Test
+    void customApplyStage() {
+        double[] signal = {1, 2, 3, 4};
+        double[] result = SignalPipeline.of(signal, 48_000)
+                .apply(s -> {
+                    for (int i = 0; i < s.length; i++) s[i] *= 2;
+                    return s;
+                })
+                .execute();
+        assertArrayEquals(new double[]{2, 4, 6, 8}, result, 1e-15);
+    }
+
+    @Test
+    void chainingMultipleStages() {
+        double[] signal = {10, 20, 30, 40};
+        double[] result = SignalPipeline.of(signal, 48_000)
+                .removeDC()
+                .normalise()
+                .execute();
+
+        // Mean should be 0
+        double mean = 0;
+        for (double v : result) mean += v;
+        mean /= result.length;
+        assertEquals(0.0, mean, 1e-10);
+
+        // Peak should be 1
+        double peak = 0;
+        for (double v : result) peak = Math.max(peak, Math.abs(v));
+        assertEquals(1.0, peak, 1e-10);
+    }
+
+    @Test
+    void executeToDominantFrequency() {
+        int n = 2048;
+        double sampleRate = 48_000;
+        double freq = 1000.0;
+        double[] signal = new double[n];
+        for (int i = 0; i < n; i++) {
+            signal[i] = Math.cos(2.0 * Math.PI * freq * i / sampleRate);
+        }
+
+        double detected = SignalPipeline.of(signal, sampleRate)
+                .executeToDominantFrequency();
+        assertEquals(freq, detected, sampleRate / n);
+    }
+
+    @Test
+    void nullSignalThrows() {
+        assertThrows(NullPointerException.class,
+                () -> SignalPipeline.of(null, 48_000));
+    }
+
+    @Test
+    void invalidSampleRateThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> SignalPipeline.of(new double[]{1}, -100));
+    }
+}
