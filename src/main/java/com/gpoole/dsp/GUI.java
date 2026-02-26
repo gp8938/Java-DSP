@@ -30,13 +30,26 @@ import javax.swing.BorderFactory;
 
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
+import com.gpoole.dsp.signal.DSP;
+import com.gpoole.dsp.signal.WindowFunction;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.Line;
 
 /**
+ * Main application window for real-time audio capture and FFT-based
+ * frequency analysis.
+ * <p>
+ * Provides a Swing GUI with controls for selecting audio sources,
+ * sample rates, and FFT sizes. The captured audio is processed through
+ * a pipeline of windowing, FFT, noise thresholding, and frequency smoothing
+ * before being displayed on a live frequency-spectrum chart.
+ * </p>
  *
  * @author geoff
+ * @see XYLineChart
+ * @see com.gpoole.dsp.signal.DSP
+ * @see com.gpoole.dsp.signal.WindowFunction
  */
 public class GUI extends javax.swing.JFrame {
 
@@ -490,15 +503,15 @@ public class GUI extends javax.swing.JFrame {
     }
 
     /**
-     * Apply Hamming window to reduce spectral leakage in FFT
-     * @param samples The audio samples to window
+     * Apply the selected window function to reduce spectral leakage in FFT.
+     * <p>Delegates to {@link WindowFunction#apply(double[])} so the algorithm
+     * is shared across the codebase and fully tested independently.</p>
+     *
+     * @param samples the audio samples to window (modified in-place)
+     * @see WindowFunction#HAMMING
      */
     private void applyHammingWindow(double[] samples) {
-        int n = samples.length;
-        for (int i = 0; i < n; i++) {
-            double window = 0.54 - 0.46 * Math.cos(2.0 * Math.PI * i / (n - 1));
-            samples[i] *= window;
-        }
+        WindowFunction.HAMMING.apply(samples);
     }
 
     public class FrequencyScanner {
