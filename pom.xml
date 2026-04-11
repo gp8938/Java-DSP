@@ -30,7 +30,7 @@
         <dependency>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
-            <version>3.0.0</version>
+            <version>3.6.3</version>
             <type>maven-plugin</type>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-lang3 -->
@@ -42,14 +42,14 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.4.7-jre</version>
+            <version>33.5.0-jre</version>
             <type>jar</type>
         </dependency>
         <!-- flatlaf (Swing Look and Feel) removed; using JavaFX styling now -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>5.12.2</version>
+            <version>5.14.3</version>
             <scope>test</scope>
         </dependency>
         <!-- JavaFX dependencies (platform classifier selected for macOS Apple Silicon) -->
