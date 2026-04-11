@@ -3,10 +3,7 @@ package com.gpoole.dsp;
 import org.junit.jupiter.api.Test;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
-import javax.sound.sampled.Line;
 import javax.sound.sampled.Mixer;
-import javax.sound.sampled.TargetDataLine;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -76,7 +73,6 @@ public class AudioFormatTest {
 
     @Test
     public void testBufferSizeCalculation() {
-        float sampleRate = 48000.0f;
         int fftSize = 2048;
         int bytesPerSample = 2; // 16-bit
         int channels = 1; // mono

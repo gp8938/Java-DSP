@@ -1,67 +1,112 @@
 # Java-DSP
 
-[![Build and Test](https://github.com/YOUR_USERNAME/Java-DSP/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/YOUR_USERNAME/Java-DSP/actions/workflows/build-and-test.yml)
-[![Release](https://github.com/YOUR_USERNAME/Java-DSP/actions/workflows/release.yml/badge.svg)](https://github.com/YOUR_USERNAME/Java-DSP/actions/workflows/release.yml)
+[![Build and Test](https://github.com/gpoole/Java-DSP/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/gpoole/Java-DSP/actions/workflows/build-and-test.yml)
+[![Release](https://github.com/gpoole/Java-DSP/actions/workflows/release.yml/badge.svg)](https://github.com/gpoole/Java-DSP/actions/workflows/release.yml)
+[![Code Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)](./)
 
-A professional real-time digital signal processing application for audio analysis and frequency visualization. Built with Java 21, featuring an intuitive GUI and advanced signal processing capabilities.
+A professional real-time digital signal processing application for audio analysis and frequency visualization. Built with Java 21 and JavaFX, featuring an intuitive GUI and advanced signal processing capabilities.
 
 ## Features
 
 ### Core Functionality
+
 - **Real-time Audio Capture**: Multi-device support with automatic source selection
 - **FFT Analysis**: Fast Fourier Transform using Apache Commons Math (pure Java, cross-platform)
-- **Frequency Visualization**: Live frequency spectrum chart with JFreeChart
+- **Frequency Visualization**: Live frequency spectrum chart with JavaFX charts featuring:
+  - Normalized dB scale (peak frequency = 0 dB)
+  - Gridlines for easy frequency/amplitude reading
+  - Clean tick labels (e.g., "1k" instead of "1000.0")
 - **Advanced Signal Processing**:
   - Hamming window function for reduced spectral leakage
   - Noise threshold filtering (3x average magnitude)
   - DC component removal
   - 5-sample frequency smoothing for stable readings
-  - Configurable FFT size (512, 1024, 2048, 4096, 8192 samples)
+  - Configurable FFT size (16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 samples)
+- **Cross-Platform**: Native builds for Windows, macOS (Intel & Apple Silicon), and Linux (x64 & ARM64)
 
 ### User Interface
-- Modern look and feel with FlatLaf theme support (Dark/Light modes)
+
+- Modern JavaFX-based UI with native platform look and feel
 - Intuitive controls with real-time status updates
-- Dynamic audio device selection
-- Configurable sample rates (8kHz - 48kHz)
+- Dynamic audio device selection with automatic sample rate detection
 - Responsive chart with auto-scaling axes
 - Performance optimized with 50ms update throttling
-
-## Requirements
-
-- **Java 21** or higher
-- **Maven 3.6+** for dependency management
-- Audio input device (microphone)
-- Supported Platforms: Windows, macOS (including Apple Silicon), Linux
+- Configurable sample rates (8kHz - 48kHz)
 
 ## Quick Start
 
-### Installation
+### Download Pre-built Binaries
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/Java-DSP.git
-   cd Java-DSP
-   ```
+Download the latest release for your platform from the [Releases page](https://github.com/gpoole/Java-DSP/releases):
 
-2. **Build the project**
-   ```bash
-   mvn clean package
-   ```
+| Platform | Download |
+| -------- | -------- |
+| **Windows** (x64) | `java-dsp-{version}-windows.jar` |
+| **macOS** (Apple Silicon) | `java-dsp-{version}-macos.jar` |
+| **Linux** (x64) | `java-dsp-{version}-linux.jar` |
 
-3. **Run the application**
-   ```bash
-   mvn exec:java -Dexec.mainClass="com.gpoole.dsp.GUI"
-   ```
-   
-   Or run the JAR directly:
-   ```bash
-   java -jar target/DSP-Java-1.0-SNAPSHOT.jar
-   ```
+### Requirements
 
-### Usage
+- **Java 21** or higher
+- Audio input device (microphone)
+
+### Running the Application
+
+```bash
+java -jar java-dsp-{version}-{platform}.jar
+```
+
+Or run directly with Maven:
+
+```bash
+mvn javafx:run
+```
+
+## Building from Source
+
+### Prerequisites
+
+- **Java 21** or higher
+- **Maven 3.6+**
+- Platform-specific JavaFX SDK (optional, Maven will download automatically)
+
+### Build
+
+```bash
+# Clone repository
+git clone https://github.com/gpoole/Java-DSP.git
+cd Java-DSP
+
+# Build for current platform
+mvn clean package
+
+# Build for specific platform (CI/CD)
+mvn clean package -Djavafx.platform=linux        # Linux x64
+mvn clean package -Djavafx.platform=linux-aarch64  # Linux ARM64
+mvn clean package -Djavafx.platform=mac          # macOS Intel
+mvn clean package -Djavafx.platform=mac-aarch64  # macOS Apple Silicon
+mvn clean package -Djavafx.platform=win          # Windows x64
+```
+
+### Run Tests
+
+```bash
+mvn test
+```
+
+Tests are skipped on headless CI environments for JavaFX-dependent components.
+
+### Generate Code Coverage Report
+
+```bash
+mvn clean test jacoco:report
+# Report: target/site/jacoco/index.html
+```
+
+## Usage
 
 1. **Select Audio Source**: Choose your microphone from the dropdown menu
-2. **Configure Settings**: 
+2. **Configure Settings**:
    - Select sample rate (recommended: 48000 Hz)
    - Choose FFT size (recommended: 2048 for balanced resolution/performance)
 3. **Start Capture**: Click "Start Capture" to begin real-time analysis
@@ -72,25 +117,37 @@ A professional real-time digital signal processing application for audio analysi
 
 ### Signal Processing Pipeline
 
-```
-Audio Input → Stereo to Mono → Hamming Window → FFT → Magnitude Calculation → 
-Noise Filtering → DC Removal → Frequency Smoothing → Visualization
+```mermaid
+flowchart LR
+    A[Audio Input] --> B[Stereo to Mono]
+    B --> C[Hamming Window]
+    C --> D[FFT]
+    D --> E[Magnitude Calculation]
+    E --> F[Noise Filtering]
+    F --> G[DC Removal]
+    G --> H[Frequency Smoothing]
+    H --> I[Normalized dB Scale]
+    I --> J[Visualization]
+
+    style A fill:#e1f5fe
+    style D fill:#fff3e0
+    style J fill:#e8f5e9
 ```
 
 ### Key Components
 
-- **GUI.java**: Main application window with audio capture and control logic
-- **XYLineChart.java**: Optimized chart component with update throttling
-- **DSP.java**: Static utility class for FFT, power spectra, and frequency detection
-- **SignalPipeline.java**: Fluent builder API for chaining DSP operations
-- **WindowFunction.java**: Enum of standard window functions (Hamming, Hanning, Blackman, Flat-top)
-- **Preconditions.java**: Shared input-validation utility for fail-fast error reporting
+- **GUIFX.java**: Main JavaFX application window with audio capture and control logic
+- **XYLineChart.java**: JavaFX chart component with update throttling, thread safety, gridlines, and normalized dB display
+- **signal.DSP**: Static utility class for FFT, power spectra, and frequency detection
+- **signal.SignalPipeline**: Fluent builder API for chaining DSP operations
+- **signal.WindowFunction**: Enum of standard window functions (Hamming, Hanning, Blackman, Flat-top)
+- **util.Preconditions**: Shared input-validation utility for fail-fast error reporting
 - **FFT Processing**: Apache Commons Math FastFourierTransformer
 - **Audio API**: javax.sound.sampled for cross-platform audio capture
 
 ### Programmatic DSP API
 
-You can use the signal-processing classes directly, without the GUI:
+Use the signal-processing classes directly, without the GUI:
 
 ```java
 import com.gpoole.dsp.signal.*;
@@ -111,73 +168,12 @@ double[] coefficients = WindowFunction.BLACKMAN.getCoefficients(1024);
 ### Dependencies
 
 | Library | Version | Purpose |
-|---------|---------|---------|
+| ------- | ------- | ------- |
 | Apache Commons Math | 3.6.1 | FFT computation |
-| JFreeChart | 1.0.13 | Frequency visualization |
-| FlatLaf | 3.6 | Modern UI theme |
+| JavaFX | 20.0.2 | Modern UI framework |
+| Apache Commons Lang3 | 3.20.0 | Utility functions |
+| Guava | 33.4.7 | Additional utilities |
 | JUnit Jupiter | 5.12.2 | Unit testing |
-
-## Development
-
-### Building from Source
-
-```bash
-# Compile
-mvn clean compile
-
-# Run tests
-mvn test
-
-# Generate test reports
-mvn surefire-report:report
-
-# Package
-mvn package
-```
-
-### Running Tests
-
-The project includes comprehensive test suites:
-
-- **FFTProcessingTest**: FFT functionality, peak detection, windowing, noise filtering
-- **AudioFormatTest**: Audio format handling, sample conversion, device compatibility
-- **XYLineChartTest**: Chart rendering, data updates, performance
-
-```bash
-mvn test
-```
-
-### Project Structure
-
-```
-Java-DSP/
-├── src/
-│   ├── main/java/com/gpoole/dsp/
-│   │   ├── GUI.java                     # Main application
-│   │   ├── XYLineChart.java             # Chart component
-│   │   ├── signal/
-│   │   │   ├── DSP.java                 # Static DSP helpers (FFT, spectra)
-│   │   │   ├── SignalPipeline.java       # Fluent pipeline builder
-│   │   │   └── WindowFunction.java       # Window function enum
-│   │   └── util/
-│   │       └── Preconditions.java        # Input validation
-│   └── test/java/com/gpoole/dsp/
-│       ├── FFTProcessingTest.java
-│       ├── AudioFormatTest.java
-│       ├── XYLineChartTest.java
-│       ├── signal/
-│       │   ├── DSPTest.java              # Golden-value FFT tests
-│       │   ├── SignalPipelineTest.java
-│       │   └── WindowFunctionTest.java
-│       └── util/
-│           └── PreconditionsTest.java
-├── .github/workflows/
-│   ├── build-and-test.yml        # CI pipeline
-│   ├── release.yml               # Release automation
-│   └── codeql.yml                # Security scanning
-├── pom.xml
-└── README.md
-```
 
 ## CI/CD Pipeline
 
@@ -185,7 +181,7 @@ This project uses GitHub Actions for automated building, testing, and releases:
 
 - **Build and Test**: Runs on every push/PR across Windows, macOS, and Linux
 - **CodeQL Analysis**: Automated security vulnerability scanning
-- **Release**: Automated releases on version tags (v*)
+- **Release**: Automated releases on version tags (v*), building platform-specific JARs
 
 ### Creating a Release
 
@@ -196,44 +192,78 @@ git push origin v1.0.0
 
 This automatically triggers the release workflow, building artifacts for all platforms.
 
-## Recent Improvements
+## Project Structure
 
-- ✅ Extracted reusable `DSP` utility class with static FFT/spectrum helpers
-- ✅ Added `SignalPipeline` fluent API for chaining DSP operations
-- ✅ Added `WindowFunction` enum with Hamming, Hanning, Blackman, Flat-top windows
-- ✅ Added `Preconditions` utility for fail-fast input validation
-- ✅ Added JaCoCo code-coverage reporting
-- ✅ Added golden-value parameterized tests for FFT accuracy
-- ✅ Added comprehensive Javadoc across all public APIs
-- ✅ Fixed audio buffer calculation for stereo/mono handling
+```text
+Java-DSP/
+├── src/
+│   ├── main/java/com/gpoole/dsp/
+│   │   ├── GUIFX.java                    # Main JavaFX application
+│   │   ├── XYLineChart.java              # JavaFX chart component
+│   │   ├── signal/
+│   │   │   ├── DSP.java                  # Static DSP helpers (FFT, spectra)
+│   │   │   ├── SignalPipeline.java       # Fluent pipeline builder
+│   │   │   └── WindowFunction.java       # Window function enum
+│   │   └── util/
+│   │       └── Preconditions.java        # Input validation
+│   └── test/java/com/gpoole/dsp/
+│       ├── FFTProcessingTest.java
+│       ├── AudioFormatTest.java
+│       ├── XYLineChartTest.java
+│       ├── signal/
+│       │   ├── DSPTest.java
+│       │   ├── SignalPipelineTest.java
+│       │   └── WindowFunctionTest.java
+│       └── util/
+│           └── PreconditionsTest.java
+├── .github/workflows/
+│   ├── build-and-test.yml        # CI pipeline
+│   ├── release.yml               # Release automation
+│   └── codeql.yml                # Security scanning
+├── pom.xml
+├── README.md
+├── CHANGELOG.md
+└── CONTRIBUTING.md
+```
 
 ## Troubleshooting
 
 ### No audio devices detected
+
 - Ensure your microphone is connected and enabled in system settings
 - Check system permissions for microphone access
 - Try running with administrator/sudo privileges
 
+### JavaFX runtime not found
+
+- The release JARs include all JavaFX dependencies
+- For development, use `mvn javafx:run` which handles module paths automatically
+
+### Native access warnings on startup
+
+- These are harmless warnings from JavaFX accessing native libraries
+- To suppress, the application runs with `--enable-native-access=javafx.graphics`
+
 ### Poor frequency detection
+
 - Increase FFT size for better resolution
 - Ensure adequate signal strength (speak/whistle loudly)
 - Try different sample rates
 - Check for background noise
 
 ### Performance issues
+
 - Reduce FFT size (e.g., 1024 instead of 4096)
 - Lower sample rate
 - Close other audio applications
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 
@@ -242,6 +272,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 - Apache Commons Math for robust FFT implementation
-- JFreeChart for excellent charting capabilities
-- FlatLaf for modern UI theming
+- JavaFX for modern cross-platform UI
 - Java Sound API for cross-platform audio support

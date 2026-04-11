@@ -5,117 +5,104 @@
  */
 package com.gpoole.dsp;
 
-import java.awt.Dimension;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import javax.swing.JFrame;
-
-import org.jfree.chart.ChartFactory;
-import org.jfree.chart.ChartPanel;
-import org.jfree.chart.JFreeChart;
-import org.jfree.chart.axis.NumberAxis;
-import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.chart.plot.XYPlot;
-import org.jfree.chart.renderer.xy.StandardXYItemRenderer;
-import org.jfree.data.xy.XYDataset;
-import org.jfree.data.xy.XYSeries;
-import org.jfree.data.xy.XYSeriesCollection;
+import javafx.application.Platform;
+import javafx.scene.Node;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 
 /**
- * Live XY line chart for displaying the audio frequency spectrum.
+ * JavaFX-based line chart for displaying the audio frequency spectrum.
  * <p>
- * Updates are throttled to at most once every {@value #UPDATE_INTERVAL_MS} ms
- * so that rapid calls to {@link #setData(double[], int)} do not flood the
- * Swing event dispatch thread.
+ * This replaces the previous Swing/JFreeChart implementation and provides a
+ * thread-safe `setData` method that updates the JavaFX `LineChart` on the
+ * JavaFX Application Thread.
  * </p>
- *
- * @author geoff
- * @see GUI
  */
 public class XYLineChart {
 
-    private JFreeChart xyLineChart;
-    private ChartPanel chartPanel;
-    private JFrame chartFrame = new JFrame("Frequency Chart");
-    private double[] frequencyData;
-    private int samplingRate;
-    private boolean dataChanged = false;
-    private long lastUpdateTime = 0;
-    private static final long UPDATE_INTERVAL_MS = 50; // Update at most every 50ms
+    private final LineChart<Number, Number> chart;
+    private volatile double[] frequencyData;
+    private volatile int samplingRate;
+    private volatile long lastUpdateTime = 0;
+    private static final long UPDATE_INTERVAL_MS = 50;
 
-    public XYLineChart(String chartTitle) {
-        chartPanel = new ChartPanel(xyLineChart);
-        chartPanel.setAutoscrolls(true);
-        chartPanel.setPreferredSize(new Dimension(1366, 768));
+    public XYLineChart(String title) {
+        NumberAxis xAxis = new NumberAxis(0, 22050, 1000);
+        NumberAxis yAxis = new NumberAxis();
+        yAxis.setAutoRanging(true);
+        xAxis.setLabel("Frequency (Hz)");
+        yAxis.setLabel("Power (dB)");
+        xAxis.setTickLabelFormatter(new HzFormatter());
+        xAxis.setMinorTickVisible(true);
+        yAxis.setMinorTickVisible(true);
+        chart = new LineChart<>(xAxis, yAxis);
+        chart.setTitle(title);
+        chart.setAnimated(false);
+        chart.setCreateSymbols(false);
+        chart.setHorizontalGridLinesVisible(true);
+        chart.setVerticalGridLinesVisible(true);
+        chart.setAlternativeColumnFillVisible(false);
+        chart.setAlternativeRowFillVisible(false);
+        chart.setPrefSize(800, 600);
+        chart.setMinSize(400, 300);
+        chart.setLegendVisible(false);
+    }
 
-        chartFrame.setAutoRequestFocus(false);
-        chartFrame.setVisible(true);
-        chartFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    private static class HzFormatter extends javafx.scene.chart.NumberAxis.DefaultFormatter {
+        HzFormatter() {
+            super(new NumberAxis(), "", "");
+        }
+        @Override
+        public String toString(Number value) {
+            int hz = value.intValue();
+            if (hz >= 1000) return (hz / 1000) + "k";
+            return String.valueOf(hz);
+        }
+    }
 
-        Thread repaintThread = new Thread(() -> {
-            while (true) {
-                try {
-                    long currentTime = System.currentTimeMillis();
-                    if (dataChanged && (currentTime - lastUpdateTime) >= UPDATE_INTERVAL_MS && frequencyData != null) {
-                        dataChanged = false;
-                        lastUpdateTime = currentTime;
-                        
-                        if (xyLineChart == null) {
-                            // Create chart only once
-                            xyLineChart = ChartFactory.createXYLineChart(
-                                    "Frequency Spectrum",
-                                    "Frequency (Hz)",
-                                    "Power (dB)",
-                                    createDataset(frequencyData, samplingRate),
-                                    PlotOrientation.VERTICAL,
-                                    false, true, false);
-                            
-                            XYPlot plot = xyLineChart.getXYPlot();
-                            NumberAxis rangeAxis = (NumberAxis) plot.getRangeAxis();
-                            rangeAxis.setAutoRange(true);
-                            rangeAxis.setAutoRangeIncludesZero(false);
+    private static class DbFormatter extends javafx.scene.chart.NumberAxis.DefaultFormatter {
+        DbFormatter() {
+            super(new NumberAxis(), "", "");
+        }
+        @Override
+        public String toString(Number value) {
+            return value.intValue() + " dB";
+        }
+    }
 
-                            NumberAxis domainAxis = (NumberAxis) plot.getDomainAxis();
-                            domainAxis.setAutoRange(true);
-                            domainAxis.setAutoRangeIncludesZero(true);
-
-                            chartPanel.setChart(xyLineChart);
-                            chartFrame.getContentPane().add(chartPanel);
-                            chartFrame.pack();
-                        } else {
-                            // Update existing chart data
-                            XYPlot plot = xyLineChart.getXYPlot();
-                            plot.setDataset(createDataset(frequencyData, samplingRate));
-                        }
-                    }
-                    Thread.sleep(UPDATE_INTERVAL_MS);
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(XYLineChart.class.getName()).log(Level.SEVERE, null, ex);
-                    break;
-                }
-            }
-        });
-        repaintThread.setDaemon(true);
-        repaintThread.setName("ChartUpdateThread");
-        repaintThread.start();
+    public Node getNode() {
+        return chart;
     }
 
     public void setData(double[] data, int rate) {
         frequencyData = data;
         samplingRate = rate;
-        dataChanged = true;
+        long now = System.currentTimeMillis();
+        if (now - lastUpdateTime < UPDATE_INTERVAL_MS) {
+            return; // throttle updates
+        }
+        lastUpdateTime = now;
+
+        // Update chart on JavaFX thread
+        Platform.runLater(() -> {
+            XYChart.Series<Number, Number> series = new XYChart.Series<>();
+            series.setName("Spectrum");
+            double nyquist = samplingRate / 2.0;
+            double binWidth = nyquist / frequencyData.length;
+            for (int i = 0; i < frequencyData.length; i++) {
+                double frequency = i * binWidth;
+                series.getData().add(new XYChart.Data<>(frequency, frequencyData[i]));
+            }
+            ((NumberAxis) chart.getXAxis()).setUpperBound(nyquist);
+            chart.getData().setAll(series);
+            // Apply CSS after series is rendered
+            chart.applyCss();
+            Node line = chart.lookup(".chart-series-line");
+            if (line != null) {
+                line.setStyle("-fx-stroke: #00C853; -fx-stroke-width: 2px;");
+            }
+        });
     }
 
-    private XYDataset createDataset(double[] data, int rate) {
-        final XYSeries series = new XYSeries("Frequency Data");
-        for (int i = 0; i < data.length; i++) {
-            double frequency = (i * (rate / (double) data.length)) / 2;
-            double power = data[i] == 0 ? 0 : data[i] - 15;
-            series.add(frequency, power);
-        }
-        final XYSeriesCollection dataset = new XYSeriesCollection();
-        dataset.addSeries(series);
-        return dataset;
-    }
 }
