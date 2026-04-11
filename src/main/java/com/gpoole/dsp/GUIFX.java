@@ -18,6 +18,10 @@ import org.apache.commons.math3.util.FastMath;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,9 +33,16 @@ import java.util.logging.Logger;
  */
 public class GUIFX extends Application {
 
-    private volatile boolean isCapturing = false;
-    private Thread captureThread = null;
-    private byte[] audioByteBuffer;
+    // Constants for signal processing
+    private static final int NOISE_THRESHOLD_MULTIPLIER = 3;
+    private static final int FREQUENCY_SMOOTHING_SAMPLES = 5;
+    private static final double MAGNITUDE_FLOOR_DB = -80.0;
+    private static final int THREAD_SHUTDOWN_TIMEOUT_MS = 5000;
+    private static final int SLEEP_INTERVAL_MS = 1;
+    private static final double MICROSECONDS_PER_SECOND = 1_000_000.0;
+
+    private final AtomicBoolean isCapturing = new AtomicBoolean(false);
+    private ExecutorService captureExecutor;
     private final XYLineChart xy = new XYLineChart("Frequency Spectrum");
     private int channels = 2;
 
@@ -67,6 +78,7 @@ public class GUIFX extends Application {
         samplingFrequencyComboBox = new ComboBox<>();
         fftSizeComboBox = new ComboBox<>();
         fftSizeComboBox.getItems().addAll("16","32","64","128","256","512","1024","2048","4096","8192","16384","32768","65536");
+        fftSizeComboBox.getSelectionModel().select("2048");
 
         mainFrequencyField = createReadOnlyTextField();
         fftVendorField = createReadOnlyTextField();
@@ -116,6 +128,7 @@ public class GUIFX extends Application {
         Node chartNode = xy.getNode();
         VBox chartBox = new VBox(chartNode);
         chartBox.setPadding(new Insets(8));
+        VBox.setVgrow(chartNode, Priority.ALWAYS);
         root.setCenter(chartBox);
 
         Scene scene = new Scene(root, 1200, 800);
@@ -125,6 +138,25 @@ public class GUIFX extends Application {
         // Populate audio sources after UI is visible
         populateAudioSources();
         audioSourceComboBox.setOnAction(e -> updateSamplingFrequencies());
+
+        // Shutdown executor on close
+        primaryStage.setOnCloseRequest(e -> shutdownExecutor());
+    }
+
+    @Override
+    public void stop() {
+        shutdownExecutor();
+    }
+
+    private void shutdownExecutor() {
+        if (captureExecutor != null) {
+            captureExecutor.shutdownNow();
+            try {
+                captureExecutor.awaitTermination(THREAD_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     private TextField createReadOnlyTextField() {
@@ -201,7 +233,7 @@ public class GUIFX extends Application {
     }
 
     private void onCaptureButtonClicked() {
-        if (isCapturing) return;
+        if (isCapturing.get()) return;
 
         String selectedSource = audioSourceComboBox.getSelectionModel().getSelectedItem();
         if (selectedSource == null) {
@@ -257,7 +289,7 @@ public class GUIFX extends Application {
 
             final AudioFormat finalFormat = fallbackFormat;
 
-            isCapturing = true;
+            isCapturing.set(true);
             captureButton.setDisable(true);
             stopButton.setDisable(false);
             audioSourceComboBox.setDisable(true);
@@ -265,43 +297,77 @@ public class GUIFX extends Application {
             fftSizeComboBox.setDisable(true);
             statusLabel.setText("Capturing...");
 
-            samplePeriodField.setText(String.format("%.2f us", 1000000.0 / finalFormat.getSampleRate()));
+            samplePeriodField.setText(String.format("%.2f us", MICROSECONDS_PER_SECOND / finalFormat.getSampleRate()));
             bitsPerSampleField.setText(String.valueOf(finalFormat.getSampleSizeInBits()));
             channelsField.setText(String.valueOf(finalFormat.getChannels()));
 
-            captureThread = new Thread(() -> {
-                try {
-                    FrequencyScanner fs = new FrequencyScanner();
-                    final int bytesPerSample = bytes;
-                    while (isCapturing) {
-                        int fftSize = Integer.parseInt(fftSizeComboBox.getSelectionModel().getSelectedItem());
-                        int bytesNeeded = (channels * bytesPerSample) * fftSize;
-                        if (microphone.available() >= bytesNeeded) {
-                            audioByteBuffer = new byte[bytesNeeded];
-                            double[] audioBuffer = new double[fftSize];
-                            microphone.read(audioByteBuffer, 0, audioByteBuffer.length);
+            // Update device info before starting thread
+            updateDeviceInfo();
 
-                            for (int i = 0; i < fftSize; i++) {
-                                if (channels == 2) {
-                                    int leftSample = (audioByteBuffer[i * bytesPerSample * 2] << 8) | (audioByteBuffer[i * bytesPerSample * 2 + 1] & 0xFF);
-                                    int rightSample = (audioByteBuffer[i * bytesPerSample * 2 + bytesPerSample] << 8) | (audioByteBuffer[i * bytesPerSample * 2 + bytesPerSample + 1] & 0xFF);
-                                    audioBuffer[i] = (leftSample + rightSample) / 2.0;
-                                } else {
-                                    audioBuffer[i] = (audioByteBuffer[i * bytesPerSample] << 8) | (audioByteBuffer[i * bytesPerSample + 1] & 0xFF);
-                                }
+            // Lock configuration at capture start
+            final int lockedFftSize = Integer.parseInt(fftSizeComboBox.getSelectionModel().getSelectedItem());
+            final int lockedBytesPerSample = bytes;
+            final boolean bigEndian = finalFormat.isBigEndian();
+
+            // Pre-allocate buffers based on max expected size
+            final int maxBytesNeeded = (channels * lockedBytesPerSample) * lockedFftSize;
+            final byte[] audioByteBuffer = new byte[maxBytesNeeded];
+            final double[] audioBuffer = new double[lockedFftSize];
+
+            captureExecutor = Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "AudioCaptureThread-JavaFX");
+                t.setDaemon(true);
+                return t;
+            });
+
+            captureExecutor.submit(() -> {
+                try {
+                    FrequencyScanner fs = new FrequencyScanner(lockedFftSize);
+                    final int bytesPerFrame = channels * lockedBytesPerSample;
+
+                    while (isCapturing.get()) {
+                        int bytesNeeded = bytesPerFrame * lockedFftSize;
+                        int available = microphone.available();
+
+                        if (available >= bytesNeeded) {
+                            // Handle partial reads - ensure we get complete frames
+                            int bytesRead = microphone.read(audioByteBuffer, 0, bytesNeeded);
+                            if (bytesRead < bytesNeeded) {
+                                // Skip incomplete buffer
+                                continue;
                             }
+
+                            // Decode audio samples with proper endianness
+                            decodeSamples(audioByteBuffer, audioBuffer, lockedFftSize,
+                                         lockedBytesPerSample, channels, bigEndian);
 
                             applyHammingWindow(audioBuffer);
                             double frequency = fs.extractFrequency(audioBuffer, (int) finalFormat.getSampleRate());
                             Platform.runLater(() -> mainFrequencyField.setText(String.format("%.2f Hz", frequency)));
                         } else {
-                            try { Thread.sleep(10); } catch (InterruptedException ex) { break; }
+                            // Skip frames if not enough data (don't accumulate lag)
+                            try {
+                                Thread.sleep(SLEEP_INTERVAL_MS);
+                            } catch (InterruptedException ex) {
+                                Thread.currentThread().interrupt();
+                                break;
+                            }
                         }
                     }
-                } catch (InterruptedException | IOException ex) {
-                    if (isCapturing) Logger.getLogger(GUIFX.class.getName()).log(Level.WARNING, "Error during capture", ex);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                } catch (IOException ex) {
+                    if (isCapturing.get()) {
+                        Logger.getLogger(GUIFX.class.getName()).log(Level.WARNING, "Error during capture", ex);
+                    }
                 } finally {
-                    try { microphone.stop(); microphone.flush(); microphone.close(); } catch (RuntimeException e) { Logger.getLogger(GUIFX.class.getName()).log(Level.WARNING, "Error closing microphone", e); }
+                    try {
+                        microphone.stop();
+                        microphone.flush();
+                        microphone.close();
+                    } catch (RuntimeException e) {
+                        Logger.getLogger(GUIFX.class.getName()).log(Level.WARNING, "Error closing microphone", e);
+                    }
                     Platform.runLater(() -> {
                         statusLabel.setText("Ready");
                         captureButton.setDisable(false);
@@ -312,19 +378,46 @@ public class GUIFX extends Application {
                     });
                 }
             });
-            captureThread.setDaemon(true);
-            captureThread.setName("AudioCaptureThread-JavaFX");
-            captureThread.start();
 
         } catch (LineUnavailableException ex) {
-            isCapturing = false;
+            isCapturing.set(false);
             Logger.getLogger(GUIFX.class.getName()).log(Level.SEVERE, "Audio line unavailable", ex);
             showError("Audio Device Error", "Unable to access the audio input device.\nError: " + ex.getMessage());
         }
     }
 
+    private void decodeSamples(byte[] audioByteBuffer, double[] audioBuffer, int fftSize,
+                               int bytesPerSample, int channels, boolean bigEndian) {
+        for (int i = 0; i < fftSize; i++) {
+            if (channels == 2) {
+                int leftSample = readSample(audioByteBuffer, i * bytesPerSample * 2, bytesPerSample, bigEndian);
+                int rightSample = readSample(audioByteBuffer, i * bytesPerSample * 2 + bytesPerSample, bytesPerSample, bigEndian);
+                audioBuffer[i] = (leftSample + rightSample) / 2.0;
+            } else {
+                audioBuffer[i] = readSample(audioByteBuffer, i * bytesPerSample, bytesPerSample, bigEndian);
+            }
+        }
+    }
+
+    private int readSample(byte[] buffer, int offset, int bytesPerSample, boolean bigEndian) {
+        if (bigEndian) {
+            int sample = buffer[offset] << 8;
+            if (bytesPerSample > 1) {
+                sample |= (buffer[offset + 1] & 0xFF);
+            }
+            return sample;
+        } else {
+            // Little-endian: LSB first
+            int sample = buffer[offset] & 0xFF;
+            if (bytesPerSample > 1) {
+                sample |= (buffer[offset + 1] << 8);
+            }
+            return sample;
+        }
+    }
+
     private void stopCapture() {
-        isCapturing = false;
+        isCapturing.set(false);
         captureButton.setDisable(false);
         stopButton.setDisable(true);
         audioSourceComboBox.setDisable(false);
@@ -343,6 +436,15 @@ public class GUIFX extends Application {
         });
     }
 
+    private void updateDeviceInfo() {
+        Platform.runLater(() -> {
+            fftVendorField.setText("Apache Commons Math");
+            fftProcessorField.setText("Pure Java FFT");
+            openCLVersionField.setText("N/A");
+            driverVersionField.setText("N/A");
+        });
+    }
+
     private void applyHammingWindow(double[] samples) {
         com.gpoole.dsp.signal.WindowFunction.HAMMING.apply(samples);
     }
@@ -350,72 +452,80 @@ public class GUIFX extends Application {
     public class FrequencyScanner {
 
         private final FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
-        private double[] recentFrequencies = new double[5];
+        private final double[] recentFrequencies;
         private int freqIndex = 0;
         private double lastFrequency = 0;
+        private final int smoothingSamples;
+        private final double[] fftBuffer;
 
-        public FrequencyScanner() {
-            updateDeviceInfo();
-        }
-
-        private void updateDeviceInfo() {
-            Platform.runLater(() -> {
-                fftVendorField.setText("Apache Commons Math");
-                fftProcessorField.setText("Pure Java FFT");
-                openCLVersionField.setText("N/A");
-                driverVersionField.setText("N/A");
-            });
+        public FrequencyScanner(int fftSize) {
+            this.smoothingSamples = FREQUENCY_SMOOTHING_SAMPLES;
+            this.recentFrequencies = new double[smoothingSamples];
+            // Pre-allocate FFT buffer at exact power of 2
+            int powerOf2 = 1;
+            while (powerOf2 < fftSize) powerOf2 <<= 1;
+            this.fftBuffer = new double[powerOf2];
         }
 
         public double extractFrequency(double[] sampleData, int sampleRate) throws InterruptedException, IOException {
             long startTime = System.currentTimeMillis();
 
             int n = sampleData.length;
-            int powerOf2 = 1;
-            while (powerOf2 < n) powerOf2 *= 2;
-            double[] padded = new double[powerOf2];
-            System.arraycopy(sampleData, 0, padded, 0, n);
+            int powerOf2 = fftBuffer.length;
 
-            org.apache.commons.math3.complex.Complex[] fftResult = fft.transform(padded, TransformType.FORWARD);
-            double[] b = new double[fftResult.length / 2];
+            // Copy to pre-allocated buffer and pad with zeros
+            System.arraycopy(sampleData, 0, fftBuffer, 0, n);
+            for (int i = n; i < powerOf2; i++) {
+                fftBuffer[i] = 0.0;
+            }
+
+            org.apache.commons.math3.complex.Complex[] fftResult = fft.transform(fftBuffer, TransformType.FORWARD);
+            int spectrumLength = fftResult.length / 2;
+            double[] magnitudes = new double[spectrumLength];
             double maxMag = Double.NEGATIVE_INFINITY;
             int maxInd = -1;
             double mean = 0.0;
 
-            for (int i = 1; i < fftResult.length / 2; i++) {
+            // Skip DC component (i=0)
+            for (int i = 1; i < spectrumLength; i++) {
                 double real = fftResult[i].getReal();
                 double imag = fftResult[i].getImaginary();
                 double mag = Math.sqrt(real * real + imag * imag);
                 mean += mag;
-                b[i] = mag;
+                magnitudes[i] = mag;
             }
 
-            double avgMag = mean / (double) (fftResult.length / 2 - 1);
-            double threshold = avgMag * 3.0;
+            double avgMag = mean / (spectrumLength - 1);
+            double threshold = avgMag * NOISE_THRESHOLD_MULTIPLIER;
 
-            for (int i = 1; i < fftResult.length / 2; i++) {
-                if (b[i] > threshold && b[i] > maxMag) {
-                    maxMag = b[i];
+            for (int i = 1; i < spectrumLength; i++) {
+                if (magnitudes[i] > threshold && magnitudes[i] > maxMag) {
+                    maxMag = magnitudes[i];
                     maxInd = i;
                 }
             }
 
-            for (int i = 0; i < b.length; i++) {
-                if (b[i] > 0) b[i] = 20 * FastMath.log10(b[i] / 0.776);
-                else b[i] = -100;
+            // Normalize to peak magnitude for relative dB display
+            double peakMag = maxMag > 0 ? maxMag : 1.0;
+            for (int i = 0; i < magnitudes.length; i++) {
+                if (magnitudes[i] > 0) {
+                    magnitudes[i] = 20 * FastMath.log10(magnitudes[i] / peakMag);
+                } else {
+                    magnitudes[i] = MAGNITUDE_FLOOR_DB;
+                }
             }
 
-            xy.setData(b, sampleRate);
+            xy.setData(magnitudes, sampleRate);
             long endTime = System.currentTimeMillis();
-            Platform.runLater(() -> executionPeriodField.setText(String.valueOf(endTime - startTime) + "ms"));
+            Platform.runLater(() -> executionPeriodField.setText((endTime - startTime) + "ms"));
 
             if (maxInd > 0) {
                 double frequency = (double) (sampleRate * maxInd / fftResult.length);
                 recentFrequencies[freqIndex] = frequency;
-                freqIndex = (freqIndex + 1) % recentFrequencies.length;
+                freqIndex = (freqIndex + 1) % smoothingSamples;
                 double smoothed = 0;
                 for (double f : recentFrequencies) smoothed += f;
-                smoothed /= recentFrequencies.length;
+                smoothed /= smoothingSamples;
                 lastFrequency = smoothed;
                 return smoothed;
             }

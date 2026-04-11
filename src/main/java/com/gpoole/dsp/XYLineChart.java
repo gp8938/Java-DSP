@@ -28,14 +28,47 @@ public class XYLineChart {
     private static final long UPDATE_INTERVAL_MS = 50;
 
     public XYLineChart(String title) {
-        NumberAxis xAxis = new NumberAxis();
+        NumberAxis xAxis = new NumberAxis(0, 22050, 1000);
         NumberAxis yAxis = new NumberAxis();
+        yAxis.setAutoRanging(true);
         xAxis.setLabel("Frequency (Hz)");
         yAxis.setLabel("Power (dB)");
+        xAxis.setTickLabelFormatter(new HzFormatter());
+        xAxis.setMinorTickVisible(true);
+        yAxis.setMinorTickVisible(true);
         chart = new LineChart<>(xAxis, yAxis);
         chart.setTitle(title);
         chart.setAnimated(false);
         chart.setCreateSymbols(false);
+        chart.setHorizontalGridLinesVisible(true);
+        chart.setVerticalGridLinesVisible(true);
+        chart.setAlternativeColumnFillVisible(false);
+        chart.setAlternativeRowFillVisible(false);
+        chart.setPrefSize(800, 600);
+        chart.setMinSize(400, 300);
+        chart.setLegendVisible(false);
+    }
+
+    private static class HzFormatter extends javafx.scene.chart.NumberAxis.DefaultFormatter {
+        HzFormatter() {
+            super(new NumberAxis(), "", "");
+        }
+        @Override
+        public String toString(Number value) {
+            int hz = value.intValue();
+            if (hz >= 1000) return (hz / 1000) + "k";
+            return String.valueOf(hz);
+        }
+    }
+
+    private static class DbFormatter extends javafx.scene.chart.NumberAxis.DefaultFormatter {
+        DbFormatter() {
+            super(new NumberAxis(), "", "");
+        }
+        @Override
+        public String toString(Number value) {
+            return value.intValue() + " dB";
+        }
     }
 
     public Node getNode() {
@@ -54,13 +87,21 @@ public class XYLineChart {
         // Update chart on JavaFX thread
         Platform.runLater(() -> {
             XYChart.Series<Number, Number> series = new XYChart.Series<>();
+            series.setName("Spectrum");
+            double nyquist = samplingRate / 2.0;
+            double binWidth = nyquist / frequencyData.length;
             for (int i = 0; i < frequencyData.length; i++) {
-                double frequency = (i * (samplingRate / (double) frequencyData.length)) / 2.0;
-                double power = frequencyData[i] == 0 ? 0 : frequencyData[i] - 15;
-                series.getData().add(new XYChart.Data<>(frequency, power));
+                double frequency = i * binWidth;
+                series.getData().add(new XYChart.Data<>(frequency, frequencyData[i]));
             }
-            chart.getData().clear();
-            chart.getData().add(series);
+            ((NumberAxis) chart.getXAxis()).setUpperBound(nyquist);
+            chart.getData().setAll(series);
+            // Apply CSS after series is rendered
+            chart.applyCss();
+            Node line = chart.lookup(".chart-series-line");
+            if (line != null) {
+                line.setStyle("-fx-stroke: #00C853; -fx-stroke-width: 2px;");
+            }
         });
     }
 

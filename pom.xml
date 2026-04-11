@@ -68,9 +68,9 @@
     </dependencies>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>25</maven.compiler.source>
-        <maven.compiler.target>25</maven.compiler.target>
-        <maven.compiler.release>25</maven.compiler.release>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.release>21</maven.compiler.release>
         <!-- JavaFX properties (pick a widely-available OpenJFX release) -->
         <javafx.version>20.0.2</javafx.version>
         <javafx.platform>mac-aarch64</javafx.platform>
@@ -135,6 +135,12 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.14</version>
+                <configuration>
+                    <excludes>
+                        <exclude>com/gpoole/dsp/GUIFX*</exclude>
+                        <exclude>com/gpoole/dsp/XYLineChart*</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>
@@ -181,6 +187,9 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>com.gpoole.dsp.GUIFX</mainClass>
+                    <options>
+                        <option>--enable-native-access=javafx.graphics</option>
+                    </options>
                 </configuration>
             </plugin>
             
@@ -188,6 +197,67 @@
     </build>
 
     <profiles>
+        <!-- JavaFX platform auto-detection -->
+        <profile>
+            <id>javafx-linux</id>
+            <activation>
+                <os>
+                    <name>linux</name>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <javafx.platform>linux</javafx.platform>
+            </properties>
+        </profile>
+        <profile>
+            <id>javafx-linux-aarch64</id>
+            <activation>
+                <os>
+                    <name>linux</name>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <javafx.platform>linux-aarch64</javafx.platform>
+            </properties>
+        </profile>
+        <profile>
+            <id>javafx-mac</id>
+            <activation>
+                <os>
+                    <name>mac os x</name>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+            <properties>
+                <javafx.platform>mac</javafx.platform>
+            </properties>
+        </profile>
+        <profile>
+            <id>javafx-mac-aarch64</id>
+            <activation>
+                <os>
+                    <name>mac os x</name>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <javafx.platform>mac-aarch64</javafx.platform>
+            </properties>
+        </profile>
+        <profile>
+            <id>javafx-windows</id>
+            <activation>
+                <os>
+                    <name>windows</name>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <javafx.platform>win</javafx.platform>
+            </properties>
+        </profile>
         <profile>
             <id>enable-toolchains</id>
             <activation>
@@ -202,7 +272,7 @@
                         <configuration>
                             <toolchains>
                                 <jdk>
-                                    <version>25</version>
+                                    <version>21</version>
                                     <vendor>any</vendor>
                                 </jdk>
                             </toolchains>

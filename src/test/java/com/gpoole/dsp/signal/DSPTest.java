@@ -145,6 +145,66 @@ class DSPTest {
                 () -> DSP.dominantFrequency(new double[256], -1));
     }
 
+    // -------- test tone generation and detection --------------------------
+
+    @ParameterizedTest(name = "test tone {0} Hz at {1} Hz sample rate")
+    @CsvSource({
+            "440,  48000",
+            "1000, 48000",
+            "440,  44100",
+            "1000, 44100",
+            "8000, 48000",
+    })
+    void testToneDetection(double testFreq, double sampleRate) {
+        int numSamples = (int) (sampleRate * 0.1); // 100ms of audio
+        double[] tone = TestToneGenerator.generateSineWaveSamples(testFreq, sampleRate, numSamples);
+
+        double detected = DSP.dominantFrequency(tone, sampleRate);
+        double tolerance = 5.0; // ±5 Hz tolerance
+        assertEquals(testFreq, detected, tolerance,
+                "Should detect test tone frequency within 5 Hz");
+    }
+
+    @Test
+    void testTone440HzPowerSpectrum() {
+        double sampleRate = 48_000;
+        int numSamples = 4096;
+        double freq = 440.0;
+        double[] tone = TestToneGenerator.generateSineWaveSamples(freq, sampleRate, numSamples);
+
+        double[] power = DSP.powerSpectrum(tone);
+        double[] freqs = DSP.frequencyBins(numSamples, sampleRate);
+
+        // Find peak bin
+        int peakBin = 0;
+        double peakPower = 0;
+        for (int i = 0; i < power.length; i++) {
+            if (power[i] > peakPower) {
+                peakPower = power[i];
+                peakBin = i;
+            }
+        }
+
+        double expectedFreq = freqs[peakBin];
+        // Tolerance accounts for FFT bin resolution (48000/4096 ≈ 11.7 Hz per bin)
+        assertEquals(freq, expectedFreq, 15.0,
+                "Peak in power spectrum should correspond to test tone frequency");
+    }
+
+    @Test
+    void testToneMultipleFrequencies() {
+        double[] frequencies = {100, 440, 1000, 5000, 10000};
+        double sampleRate = 48_000;
+        int numSamples = 2048;
+
+        for (double freq : frequencies) {
+            double[] tone = TestToneGenerator.generateSineWaveSamples(freq, sampleRate, numSamples);
+            double detected = DSP.dominantFrequency(tone, sampleRate);
+            assertEquals(freq, detected, 10.0,
+                    "Should detect " + freq + " Hz tone");
+        }
+    }
+
     // -------- helpers ----------------------------------------------------
 
     private static double[] generateCosine(double freq, double sampleRate, int n) {

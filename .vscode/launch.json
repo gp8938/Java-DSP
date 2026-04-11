@@ -1,16 +1,12 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
-    {
-        "type": "java",
-        "name": "Launch Java Program",
-        "request": "launch",
-        "mainClass": ""
-    },
+        {
+            "type": "java",
+            "name": "Launch Java Program",
+            "request": "launch",
+            "mainClass": ""
+        },
         {
             "type": "java",
             "name": "Current File",
@@ -19,10 +15,33 @@
         },
         {
             "type": "java",
-            "name": "GUI",
+            "name": "Run GUIFX (JavaFX GUI) - Maven",
             "request": "launch",
-            "mainClass": "com.gpoole.dsp.GUI",
-            "projectName": "DSP-Java"
+            "mainClass": "com.gpoole.dsp.GUIFX",
+            "projectName": "DSP-Java",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "preLaunchTask": "compile-javafx"
+        },
+        {
+            "type": "java",
+            "name": "Debug GUIFX (JavaFX GUI)",
+            "request": "launch",
+            "mainClass": "com.gpoole.dsp.GUIFX",
+            "projectName": "DSP-Java",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "Run All Tests",
+            "request": "launch",
+            "mainClass": "",
+            "projectName": "DSP-Java",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "maven-test"
         }
     ]
 }

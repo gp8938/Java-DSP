@@ -1,7 +1,7 @@
 package com.gpoole.dsp;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
+import org.junit.jupiter.api.condition.EnabledIf;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -10,15 +10,30 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class XYLineChartTest {
 
+    static boolean javafxAvailable() {
+        if (Boolean.getBoolean("java.awt.headless")) {
+            return false;
+        }
+        try {
+            javafx.application.Platform.startup(() -> {});
+            return true;
+        } catch (IllegalStateException e) {
+            // Platform already initialized
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @Test
-    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
+    @EnabledIf("javafxAvailable")
     public void testChartCreation() {
         XYLineChart chart = new XYLineChart("Test Chart");
         assertNotNull(chart, "Chart should be created successfully");
     }
 
     @Test
-    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
+    @EnabledIf("javafxAvailable")
     public void testDataUpdate() {
         XYLineChart chart = new XYLineChart("Test Chart");
         
@@ -35,7 +50,7 @@ public class XYLineChartTest {
     }
 
     @Test
-    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
+    @EnabledIf("javafxAvailable")
     public void testEmptyDataHandling() {
         XYLineChart chart = new XYLineChart("Test Chart");
         
@@ -47,7 +62,7 @@ public class XYLineChartTest {
     }
 
     @Test
-    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
+    @EnabledIf("javafxAvailable")
     public void testLargeDataSet() {
         XYLineChart chart = new XYLineChart("Test Chart");
         
@@ -65,7 +80,7 @@ public class XYLineChartTest {
     }
 
     @Test
-    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
+    @EnabledIf("javafxAvailable")
     public void testChartThrottling() throws InterruptedException {
         XYLineChart chart = new XYLineChart("Test Chart");
         
@@ -89,7 +104,7 @@ public class XYLineChartTest {
     }
 
     @Test
-    @DisabledIfSystemProperty(named = "java.awt.headless", matches = "true")
+    @EnabledIf("javafxAvailable")
     public void testMultipleSampleRates() {
         XYLineChart chart = new XYLineChart("Test Chart");
         
