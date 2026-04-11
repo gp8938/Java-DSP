@@ -28,6 +28,9 @@ public final class DSP {
 
     private static final FastFourierTransformer FFT =
             new FastFourierTransformer(DftNormalization.STANDARD);
+    private static final double DB_MULTIPLIER = 20.0;
+    private static final double DB_MIN = -120.0;
+    private static final double DOMINANT_FREQ_THRESHOLD_MULTIPLE = 3.0;
 
     private DSP() {
         // utility class
@@ -80,7 +83,7 @@ public final class DSP {
         double[] mag = magnitudeSpectrum(signal);
         double[] db = new double[mag.length];
         for (int i = 0; i < mag.length; i++) {
-            db[i] = mag[i] > 0 ? 20.0 * FastMath.log10(mag[i] / refLevel) : -120.0;
+            db[i] = mag[i] > 0 ? DB_MULTIPLIER * FastMath.log10(mag[i] / refLevel) : DB_MIN;
         }
         return db;
     }
@@ -141,7 +144,7 @@ public final class DSP {
         }
 
         double mean = sum / (half - 1);
-        double threshold = mean * 3.0;
+        double threshold = mean * DOMINANT_FREQ_THRESHOLD_MULTIPLE;
 
         if (maxIdx > 0 && maxMag > threshold) {
             return maxIdx * samplingRate / fft.length;

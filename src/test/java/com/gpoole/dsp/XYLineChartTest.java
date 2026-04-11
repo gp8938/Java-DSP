@@ -2,7 +2,6 @@ package com.gpoole.dsp;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
-import javax.swing.JFrame;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**

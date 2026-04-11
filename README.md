@@ -8,6 +8,7 @@ A professional real-time digital signal processing application for audio analysi
 ## Features
 
 ### Core Functionality
+
 - **Real-time Audio Capture**: Multi-device support with automatic source selection
 - **FFT Analysis**: Fast Fourier Transform using Apache Commons Math (pure Java, cross-platform)
 - **Frequency Visualization**: Live frequency spectrum chart with JFreeChart
@@ -19,9 +20,31 @@ A professional real-time digital signal processing application for audio analysi
   - Configurable FFT size (512, 1024, 2048, 4096, 8192 samples)
 
 ### User Interface
+
 - Modern look and feel with FlatLaf theme support (Dark/Light modes)
 - Intuitive controls with real-time status updates
 - Dynamic audio device selection
+
+## Running the JavaFX GUI
+
+This project now uses JavaFX for the UI (`com.gpoole.dsp.GUIFX`). JavaFX runtime components are required at run-time; the easiest way to run locally is via the Maven JavaFX plugin which adds the correct module path for your platform.
+
+Run from the project root:
+
+```bash
+# Run the JavaFX application (uses the javafx-maven-plugin)
+./scripts/run-javafx.sh
+```
+
+If you prefer to run directly with `java`, make sure to set `--module-path` to the location of the JavaFX SDK jars and add the modules, for example:
+
+```bash
+# Example (replace /path/to/javafx/lib with the actual path to JavaFX jars):
+java --module-path /path/to/javafx/lib --add-modules javafx.controls,javafx.fxml -cp target/classes:lib/* com.gpoole.dsp.GUIFX
+```
+
+If you launch from your IDE, configure the VM arguments accordingly or use the Maven `javafx:run` goal as shown above.
+
 - Configurable sample rates (8kHz - 48kHz)
 - Responsive chart with auto-scaling axes
 - Performance optimized with 50ms update throttling
@@ -38,22 +61,26 @@ A professional real-time digital signal processing application for audio analysi
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/Java-DSP.git
    cd Java-DSP
    ```
 
 2. **Build the project**
+
    ```bash
    mvn clean package
    ```
 
 3. **Run the application**
+
    ```bash
    mvn exec:java -Dexec.mainClass="com.gpoole.dsp.GUI"
    ```
-   
+
    Or run the JAR directly:
+
    ```bash
    java -jar target/DSP-Java-1.0-SNAPSHOT.jar
    ```
@@ -61,7 +88,7 @@ A professional real-time digital signal processing application for audio analysi
 ### Usage
 
 1. **Select Audio Source**: Choose your microphone from the dropdown menu
-2. **Configure Settings**: 
+2. **Configure Settings**:
    - Select sample rate (recommended: 48000 Hz)
    - Choose FFT size (recommended: 2048 for balanced resolution/performance)
 3. **Start Capture**: Click "Start Capture" to begin real-time analysis
@@ -210,17 +237,20 @@ This automatically triggers the release workflow, building artifacts for all pla
 ## Troubleshooting
 
 ### No audio devices detected
+
 - Ensure your microphone is connected and enabled in system settings
 - Check system permissions for microphone access
 - Try running with administrator/sudo privileges
 
 ### Poor frequency detection
+
 - Increase FFT size for better resolution
 - Ensure adequate signal strength (speak/whistle loudly)
 - Try different sample rates
 - Check for background noise
 
 ### Performance issues
+
 - Reduce FFT size (e.g., 1024 instead of 4096)
 - Lower sample rate
 - Close other audio applications
