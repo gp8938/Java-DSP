@@ -92,6 +92,10 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+                <configuration>
+                    <!-- Preserve any existing argLine (e.g. jacoco) and add headless flag for forked JVMs -->
+                    <argLine>${argLine} -Djava.awt.headless=true</argLine>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
