@@ -117,4 +117,66 @@ class SignalPipelineTest {
         assertThrows(IllegalArgumentException.class,
                 () -> SignalPipeline.of(new double[]{1}, -100));
     }
+
+    // -------- test tone validation with pipeline ---------------------------
+
+    @Test
+    void pipelineWithTestTone440Hz() {
+        int n = 2048;
+        double sampleRate = 48_000;
+        double freq = 440.0;
+        double[] tone = TestToneGenerator.generateSineWaveSamples(freq, sampleRate, n);
+
+        double detected = SignalPipeline.of(tone, sampleRate)
+                .window(WindowFunction.HAMMING)
+                .removeDC()
+                .executeToDominantFrequency();
+
+        assertEquals(freq, detected, sampleRate / n,
+                "Pipeline with windowing should detect test tone");
+    }
+
+    @Test
+    void pipelineTestToneWithMultipleStages() {
+        int n = 4096;
+        double sampleRate = 48_000;
+        double freq = 1000.0;
+        double[] tone = TestToneGenerator.generateSineWaveSamples(freq, sampleRate, n);
+
+        double detected = SignalPipeline.of(tone, sampleRate)
+                .window(WindowFunction.HAMMING)
+                .removeDC()
+                .zeroPad()
+                .executeToDominantFrequency();
+
+        assertEquals(freq, detected, 20.0,
+                "Multi-stage pipeline should detect 1000 Hz test tone");
+    }
+
+    @Test
+    void powerSpectrumWithTestTone() {
+        int n = 2048;
+        double sampleRate = 48_000;
+        double freq = 8000.0;
+        double[] tone = TestToneGenerator.generateSineWaveSamples(freq, sampleRate, n);
+
+        double[] powerDb = SignalPipeline.of(tone, sampleRate)
+                .window(WindowFunction.HAMMING)
+                .executeToPowerSpectrumDB(0.776);
+
+        // Find peak
+        int peakBin = 0;
+        double peakDb = powerDb[0];
+        for (int i = 1; i < powerDb.length; i++) {
+            if (powerDb[i] > peakDb) {
+                peakDb = powerDb[i];
+                peakBin = i;
+            }
+        }
+
+        double[] freqs = DSP.frequencyBins(n, sampleRate);
+        double peakFreq = freqs[peakBin];
+        assertEquals(freq, peakFreq, 20.0,
+                "Power spectrum peak should be at test tone frequency");
+    }
 }
