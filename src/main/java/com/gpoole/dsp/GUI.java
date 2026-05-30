@@ -550,7 +550,7 @@ public class GUI extends javax.swing.JFrame {
             double maxMag = Double.NEGATIVE_INFINITY;
             double maxInd = -1;
             double mag;
-            long mean = 0;
+            double mean = 0.0;
             
             // Calculate magnitudes and find mean
             for (int i = 1; i < fftResult.length / 2; i++) { // Start from 1 to skip DC component
