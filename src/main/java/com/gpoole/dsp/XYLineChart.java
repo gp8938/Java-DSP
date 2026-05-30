@@ -33,6 +33,9 @@ public class XYLineChart {
     private JFrame chartFrame = new JFrame("Frequency Chart");
     private double[] frequencyData;
     private int samplingRate;
+    private boolean dataChanged = false;
+    private long lastUpdateTime = 0;
+    private static final long UPDATE_INTERVAL_MS = 50; // Update at most every 50ms
 
     public XYLineChart(String chartTitle) {
         chartPanel = new ChartPanel(xyLineChart);
@@ -45,48 +48,56 @@ public class XYLineChart {
 
         Thread repaintThread = new Thread(() -> {
             while (true) {
-                if (frequencyData != null) {
-                    xyLineChart = ChartFactory.createXYLineChart(
-                            chartTitle,
-                            "Frequency (Hz)",
-                            "Power (dB)",
-                            createDataset(frequencyData, samplingRate),
-                            PlotOrientation.VERTICAL,
-                            true, true, false);
-                    chartPanel.setChart(xyLineChart);
-                    XYPlot plot = xyLineChart.getXYPlot();
-
-                    NumberAxis rangeAxis = (NumberAxis) plot.getRangeAxis();
-                    rangeAxis.setRange(-30.0, 70);
-                    rangeAxis.setAutoTickUnitSelection(true);
-
-                    NumberAxis domainAxis = (NumberAxis) plot.getDomainAxis();
-                    domainAxis.setAutoTickUnitSelection(true);
-                    domainAxis.setVerticalTickLabels(true);
-
-                    StandardXYItemRenderer renderer = new StandardXYItemRenderer();
-                    renderer.setAutoPopulateSeriesStroke(true);
-                    renderer.setAutoPopulateSeriesShape(true);
-                    plot.setRenderer(renderer);
-
-                    chartPanel.repaint();
-                    chartFrame.getContentPane().add(chartPanel);
-                    chartFrame.pack();
-                    chartFrame.repaint();
-                }
                 try {
-                    Thread.sleep(100);
+                    long currentTime = System.currentTimeMillis();
+                    if (dataChanged && (currentTime - lastUpdateTime) >= UPDATE_INTERVAL_MS && frequencyData != null) {
+                        dataChanged = false;
+                        lastUpdateTime = currentTime;
+                        
+                        if (xyLineChart == null) {
+                            // Create chart only once
+                            xyLineChart = ChartFactory.createXYLineChart(
+                                    "Frequency Spectrum",
+                                    "Frequency (Hz)",
+                                    "Power (dB)",
+                                    createDataset(frequencyData, samplingRate),
+                                    PlotOrientation.VERTICAL,
+                                    false, true, false);
+                            
+                            XYPlot plot = xyLineChart.getXYPlot();
+                            NumberAxis rangeAxis = (NumberAxis) plot.getRangeAxis();
+                            rangeAxis.setAutoRange(true);
+                            rangeAxis.setAutoRangeIncludesZero(false);
+
+                            NumberAxis domainAxis = (NumberAxis) plot.getDomainAxis();
+                            domainAxis.setAutoRange(true);
+                            domainAxis.setAutoRangeIncludesZero(true);
+
+                            chartPanel.setChart(xyLineChart);
+                            chartFrame.getContentPane().add(chartPanel);
+                            chartFrame.pack();
+                        } else {
+                            // Update existing chart data
+                            XYPlot plot = xyLineChart.getXYPlot();
+                            plot.setDataset(createDataset(frequencyData, samplingRate));
+                        }
+                    }
+                    Thread.sleep(UPDATE_INTERVAL_MS);
                 } catch (InterruptedException ex) {
                     Logger.getLogger(XYLineChart.class.getName()).log(Level.SEVERE, null, ex);
+                    break;
                 }
             }
         });
+        repaintThread.setDaemon(true);
+        repaintThread.setName("ChartUpdateThread");
         repaintThread.start();
     }
 
     public void setData(double[] data, int rate) {
         frequencyData = data;
         samplingRate = rate;
+        dataChanged = true;
     }
 
     private XYDataset createDataset(double[] data, int rate) {
