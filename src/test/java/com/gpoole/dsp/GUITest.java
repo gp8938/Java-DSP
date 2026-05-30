@@ -2,18 +2,14 @@ package com.gpoole.dsp;
 
 import javafx.stage.Stage;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIf;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.testfx.framework.junit5.ApplicationTest;
 import static org.junit.jupiter.api.Assertions.*;
 
-@DisabledIf("isHeadless")
+@ExtendWith(HeadlessCondition.class)
 class GUITest extends ApplicationTest {
 
     private GUIFX app;
-
-    private static boolean isHeadless() {
-        return Boolean.getBoolean("java.awt.headless") || "true".equals(System.getenv("CI"));
-    }
 
     @Override
     public void start(Stage stage) throws Exception {

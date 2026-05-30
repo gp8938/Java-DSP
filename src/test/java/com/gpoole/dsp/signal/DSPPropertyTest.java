@@ -1,17 +1,17 @@
 package com.gpoole.dsp.signal;
 
-import net.jqwik.api.*;
-import net.jqwik.api.constraints.IntRange;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class DSPPropertyTest {
 
-    @Property
-    void zeroPadToPowerOfTwoAlwaysReturnsPowerOfTwo(
-            @ForAll @IntRange(min = 1, max = 5000) int len
-    ) {
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, 3, 4, 5, 7, 8, 15, 16, 31, 32, 63, 64, 100, 127, 128,
+            255, 256, 511, 512, 1000, 1023, 1024, 2048, 3000, 4096, 5000})
+    void zeroPadToPowerOfTwoAlwaysReturnsPowerOfTwo(int len) {
         double[] data = new double[len];
-        // Seed with unique non-zero values to verify copy correctness
         for (int i = 0; i < len; i++) {
             data[i] = i + 1.0;
         }
@@ -30,10 +30,10 @@ class DSPPropertyTest {
         }
     }
 
-    @Property
-    void magnitudeSpectrumLengthDependsOnNextPow2(
-            @ForAll @IntRange(min = 2, max = 4096) int len
-    ) {
+    @ParameterizedTest
+    @ValueSource(ints = {2, 3, 4, 7, 8, 15, 16, 31, 32, 63, 64, 100, 127, 128,
+            255, 256, 511, 512, 1000, 1023, 1024, 2048, 3000, 4096})
+    void magnitudeSpectrumLengthDependsOnNextPow2(int len) {
         double[] signal = new double[len];
         double[] mag = DSP.magnitudeSpectrum(signal);
         int nextPow2 = 1;
@@ -42,10 +42,10 @@ class DSPPropertyTest {
         assertEquals(expectedMagLen, mag.length);
     }
 
-    @Property
-    void powerSpectrumOfSilenceIsZero(
-            @ForAll @IntRange(min = 2, max = 4096) int len
-    ) {
+    @ParameterizedTest
+    @ValueSource(ints = {2, 3, 4, 7, 8, 15, 16, 31, 32, 63, 64, 100, 127, 128,
+            255, 256, 511, 512, 1000, 1023, 1024, 2048, 3000, 4096})
+    void powerSpectrumOfSilenceIsZero(int len) {
         double[] silence = new double[len];
         double[] power = DSP.powerSpectrum(silence);
         for (double v : power) {

@@ -4,7 +4,7 @@
 [![Release](https://github.com/gpoole/Java-DSP/actions/workflows/release.yml/badge.svg)](https://github.com/gpoole/Java-DSP/actions/workflows/release.yml)
 [![Code Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)](./)
 
-A professional real-time digital signal processing application for audio analysis and frequency visualization. Built with Java 21 and JavaFX, featuring an intuitive GUI and advanced signal processing capabilities.
+A professional real-time digital signal processing application for audio analysis and frequency visualization. Built with Java 25 and JavaFX, featuring an intuitive GUI and advanced signal processing capabilities.
 
 ## Features
 
@@ -47,7 +47,7 @@ Download the latest release for your platform from the [Releases page](https://g
 
 ### Requirements
 
-- **Java 21** or higher
+- **Java 25** or higher
 - Audio input device (microphone)
 
 ### Running the Application
@@ -66,7 +66,7 @@ mvn javafx:run
 
 ### Prerequisites
 
-- **Java 21** or higher
+- **Java 25** or higher
 - **Maven 3.6+**
 - Platform-specific JavaFX SDK (optional, Maven will download automatically)
 

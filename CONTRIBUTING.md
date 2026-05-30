@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Java-DSP! This document provides 
 
 ### Prerequisites
 
-- Java 21 JDK or higher
+- Java 25 JDK or higher
 - Maven 3.6+
 - Git
 
