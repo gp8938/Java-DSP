@@ -41,6 +41,10 @@ public class GUIFX extends Application {
     private static final int THREAD_SHUTDOWN_TIMEOUT_MS = 5000;
     private static final int SLEEP_INTERVAL_MS = 1;
     private static final double MICROSECONDS_PER_SECOND = 1_000_000.0;
+    private static final long UI_UPDATE_INTERVAL_MS = 50;
+    private static final long PERIOD_UPDATE_INTERVAL_MS = 500;
+    private volatile long lastUiUpdateTime = 0;
+    private volatile long lastPeriodUpdateTime = 0;
 
     private final AtomicBoolean isCapturing = new AtomicBoolean(false);
     private ExecutorService captureExecutor;
@@ -344,7 +348,11 @@ public class GUIFX extends Application {
 
                             applyHammingWindow(audioBuffer);
                             double frequency = fs.extractFrequency(audioBuffer, (int) finalFormat.getSampleRate());
-                            Platform.runLater(() -> mainFrequencyField.setText(String.format("%.2f Hz", frequency)));
+                            long now = System.currentTimeMillis();
+                            if (now - lastUiUpdateTime >= UI_UPDATE_INTERVAL_MS) {
+                                lastUiUpdateTime = now;
+                                Platform.runLater(() -> mainFrequencyField.setText(String.format("%.2f Hz", frequency)));
+                            }
                         } else {
                             // Skip frames if not enough data (don't accumulate lag)
                             try {
@@ -515,7 +523,11 @@ public class GUIFX extends Application {
 
             xy.setData(magnitudes, sampleRate);
             long endTime = System.currentTimeMillis();
-            Platform.runLater(() -> executionPeriodField.setText((endTime - startTime) + "ms"));
+            long now2 = System.currentTimeMillis();
+            if (now2 - lastPeriodUpdateTime >= PERIOD_UPDATE_INTERVAL_MS) {
+                lastPeriodUpdateTime = now2;
+                Platform.runLater(() -> executionPeriodField.setText((endTime - startTime) + "ms"));
+            }
 
             if (maxInd > 0) {
                 double frequency = (double) (sampleRate * maxInd / fftResult.length);
