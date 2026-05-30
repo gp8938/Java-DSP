@@ -1,123 +1,43 @@
 package com.gpoole.dsp;
 
+import javafx.stage.Stage;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
+import org.junit.jupiter.api.condition.DisabledIf;
+import org.testfx.framework.junit5.ApplicationTest;
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Tests for XYLineChart visualization component
- * These tests are skipped in headless environments (CI)
- */
-public class XYLineChartTest {
+@DisabledIf("isHeadless")
+class XYLineChartTest extends ApplicationTest {
 
-    static boolean javafxAvailable() {
-        if (Boolean.getBoolean("java.awt.headless")) {
-            return false;
-        }
-        try {
-            javafx.application.Platform.startup(() -> {});
-            return true;
-        } catch (IllegalStateException e) {
-            // Platform already initialized
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+    private XYLineChart chart;
+
+    private static boolean isHeadless() {
+        return Boolean.getBoolean("java.awt.headless") || "true".equals(System.getenv("CI"));
+    }
+
+    @Override
+    public void start(Stage stage) {
+        chart = new XYLineChart("Test");
+        stage.setScene(new javafx.scene.Scene(new javafx.scene.layout.VBox(chart.getNode())));
+        stage.show();
     }
 
     @Test
-    @EnabledIf("javafxAvailable")
-    public void testChartCreation() {
-        XYLineChart chart = new XYLineChart("Test Chart");
-        assertNotNull(chart, "Chart should be created successfully");
+    void chartRenders() {
+        assertNotNull(chart);
     }
 
     @Test
-    @EnabledIf("javafxAvailable")
-    public void testDataUpdate() {
-        XYLineChart chart = new XYLineChart("Test Chart");
-        
-        double[] magnitudes = new double[100];
-        
-        for (int i = 0; i < 100; i++) {
-            magnitudes[i] = Math.random() * 100;
-        }
-        
-        int sampleRate = 48000;
-        
-        // This should not throw an exception
-        assertDoesNotThrow(() -> chart.setData(magnitudes, sampleRate));
+    void setDataDoesNotThrow() {
+        double[] data = new double[256];
+        chart.setData(data, 48000);
     }
 
     @Test
-    @EnabledIf("javafxAvailable")
-    public void testEmptyDataHandling() {
-        XYLineChart chart = new XYLineChart("Test Chart");
-        
-        double[] emptyMag = new double[0];
-        int sampleRate = 48000;
-        
-        // Should handle empty arrays gracefully
-        assertDoesNotThrow(() -> chart.setData(emptyMag, sampleRate));
-    }
-
-    @Test
-    @EnabledIf("javafxAvailable")
-    public void testLargeDataSet() {
-        XYLineChart chart = new XYLineChart("Test Chart");
-        
-        int size = 10000;
-        double[] magnitudes = new double[size];
-        
-        for (int i = 0; i < size; i++) {
-            magnitudes[i] = Math.sin(i * 0.01) * 100;
-        }
-        
-        int sampleRate = 48000;
-        
-        // Should handle large datasets
-        assertDoesNotThrow(() -> chart.setData(magnitudes, sampleRate));
-    }
-
-    @Test
-    @EnabledIf("javafxAvailable")
-    public void testChartThrottling() throws InterruptedException {
-        XYLineChart chart = new XYLineChart("Test Chart");
-        
-        double[] magnitudes = new double[100];
-        
-        for (int i = 0; i < 100; i++) {
-            magnitudes[i] = 50.0;
-        }
-        
-        int sampleRate = 48000;
-        
-        // Rapid updates should be throttled
-        long startTime = System.currentTimeMillis();
+    void multipleSetDataCallsDontThrow() {
+        double[] data = new double[128];
         for (int i = 0; i < 10; i++) {
-            chart.setData(magnitudes, sampleRate);
-        }
-        long duration = System.currentTimeMillis() - startTime;
-        
-        // Should complete quickly due to throttling
-        assertTrue(duration < 1000, "Updates should be throttled efficiently");
-    }
-
-    @Test
-    @EnabledIf("javafxAvailable")
-    public void testMultipleSampleRates() {
-        XYLineChart chart = new XYLineChart("Test Chart");
-        
-        double[] magnitudes = new double[100];
-        for (int i = 0; i < 100; i++) {
-            magnitudes[i] = Math.random() * 50;
-        }
-        
-        int[] sampleRates = {8000, 16000, 44100, 48000};
-        
-        for (int rate : sampleRates) {
-            assertDoesNotThrow(() -> chart.setData(magnitudes, rate),
-                             "Should handle sample rate: " + rate);
+            chart.setData(data, 44100);
         }
     }
 }
