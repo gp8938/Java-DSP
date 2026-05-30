@@ -22,6 +22,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.gpoole.dsp.util.Preconditions;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -40,6 +41,10 @@ public class GUIFX extends Application {
     private static final int THREAD_SHUTDOWN_TIMEOUT_MS = 5000;
     private static final int SLEEP_INTERVAL_MS = 1;
     private static final double MICROSECONDS_PER_SECOND = 1_000_000.0;
+    private static final long UI_UPDATE_INTERVAL_MS = 50;
+    private static final long PERIOD_UPDATE_INTERVAL_MS = 500;
+    private volatile long lastUiUpdateTime = 0;
+    private volatile long lastPeriodUpdateTime = 0;
 
     private final AtomicBoolean isCapturing = new AtomicBoolean(false);
     private ExecutorService captureExecutor;
@@ -343,7 +348,11 @@ public class GUIFX extends Application {
 
                             applyHammingWindow(audioBuffer);
                             double frequency = fs.extractFrequency(audioBuffer, (int) finalFormat.getSampleRate());
-                            Platform.runLater(() -> mainFrequencyField.setText(String.format("%.2f Hz", frequency)));
+                            long now = System.currentTimeMillis();
+                            if (now - lastUiUpdateTime >= UI_UPDATE_INTERVAL_MS) {
+                                lastUiUpdateTime = now;
+                                Platform.runLater(() -> mainFrequencyField.setText(String.format("%.2f Hz", frequency)));
+                            }
                         } else {
                             // Skip frames if not enough data (don't accumulate lag)
                             try {
@@ -400,18 +409,15 @@ public class GUIFX extends Application {
     }
 
     private int readSample(byte[] buffer, int offset, int bytesPerSample, boolean bigEndian) {
+        Preconditions.checkArgument(bytesPerSample == 2,
+                "Only 16-bit (2-byte) samples are supported, got " + bytesPerSample);
         if (bigEndian) {
             int sample = buffer[offset] << 8;
-            if (bytesPerSample > 1) {
-                sample |= (buffer[offset + 1] & 0xFF);
-            }
+            sample |= (buffer[offset + 1] & 0xFF);
             return sample;
         } else {
-            // Little-endian: LSB first
             int sample = buffer[offset] & 0xFF;
-            if (bytesPerSample > 1) {
-                sample |= (buffer[offset + 1] << 8);
-            }
+            sample |= (buffer[offset + 1] << 8);
             return sample;
         }
     }
@@ -454,6 +460,7 @@ public class GUIFX extends Application {
         private final FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
         private final double[] recentFrequencies;
         private int freqIndex = 0;
+        private boolean filled = false;
         private double lastFrequency = 0;
         private final int smoothingSamples;
         private final double[] fftBuffer;
@@ -475,6 +482,11 @@ public class GUIFX extends Application {
 
             // Copy to pre-allocated buffer and pad with zeros
             System.arraycopy(sampleData, 0, fftBuffer, 0, n);
+            // Normalize 16-bit samples to [-1.0, 1.0] for meaningful FFT scale
+            double scale = 32768.0;
+            for (int i = 0; i < n; i++) {
+                fftBuffer[i] /= scale;
+            }
             for (int i = n; i < powerOf2; i++) {
                 fftBuffer[i] = 0.0;
             }
@@ -517,17 +529,32 @@ public class GUIFX extends Application {
 
             xy.setData(magnitudes, sampleRate);
             long endTime = System.currentTimeMillis();
-            Platform.runLater(() -> executionPeriodField.setText((endTime - startTime) + "ms"));
+            long now2 = System.currentTimeMillis();
+            if (now2 - lastPeriodUpdateTime >= PERIOD_UPDATE_INTERVAL_MS) {
+                lastPeriodUpdateTime = now2;
+                Platform.runLater(() -> executionPeriodField.setText((endTime - startTime) + "ms"));
+            }
 
             if (maxInd > 0) {
                 double frequency = (double) (sampleRate * maxInd / fftResult.length);
+                if (filled) {
+                    recentFrequencies[freqIndex] = frequency;
+                    freqIndex = (freqIndex + 1) % smoothingSamples;
+                    double smoothed = 0;
+                    for (double f : recentFrequencies) smoothed += f;
+                    smoothed /= smoothingSamples;
+                    lastFrequency = smoothed;
+                    return smoothed;
+                }
+
+                // Fill phase — collect samples without averaging
                 recentFrequencies[freqIndex] = frequency;
-                freqIndex = (freqIndex + 1) % smoothingSamples;
-                double smoothed = 0;
-                for (double f : recentFrequencies) smoothed += f;
-                smoothed /= smoothingSamples;
-                lastFrequency = smoothed;
-                return smoothed;
+                freqIndex++;
+                if (freqIndex == smoothingSamples) {
+                    filled = true;
+                    freqIndex = 0;
+                }
+                return frequency;
             }
             return lastFrequency;
         }

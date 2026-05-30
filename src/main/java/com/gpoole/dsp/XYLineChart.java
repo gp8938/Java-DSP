@@ -25,6 +25,7 @@ public class XYLineChart {
     private volatile double[] frequencyData;
     private volatile int samplingRate;
     private volatile long lastUpdateTime = 0;
+    private volatile boolean cssApplied = false;
     private static final long UPDATE_INTERVAL_MS = 50;
 
     public XYLineChart(String title) {
@@ -96,11 +97,14 @@ public class XYLineChart {
             }
             ((NumberAxis) chart.getXAxis()).setUpperBound(nyquist);
             chart.getData().setAll(series);
-            // Apply CSS after series is rendered
-            chart.applyCss();
-            Node line = chart.lookup(".chart-series-line");
-            if (line != null) {
-                line.setStyle("-fx-stroke: #00C853; -fx-stroke-width: 2px;");
+            // Apply CSS once on first render
+            if (!cssApplied) {
+                chart.applyCss();
+                Node line = chart.lookup(".chart-series-line");
+                if (line != null) {
+                    line.setStyle("-fx-stroke: #00C853; -fx-stroke-width: 2px;");
+                    cssApplied = true;
+                }
             }
         });
     }
