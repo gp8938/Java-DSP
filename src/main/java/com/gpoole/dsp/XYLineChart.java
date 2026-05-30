@@ -86,7 +86,7 @@ public class XYLineChart {
                 series.getData().add(new XYChart.Data<>(frequency, frequencyData[i]));
             }
             ((NumberAxis) chart.getXAxis()).setUpperBound(nyquist);
-            chart.getData().setAll(series);
+            chart.getData().setAll(java.util.Collections.singletonList(series));
             // Apply CSS once on first render
             if (!cssApplied) {
                 chart.applyCss();
