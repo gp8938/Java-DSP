@@ -5,7 +5,7 @@ import org.apache.commons.math3.complex.Complex;
 import org.apache.commons.math3.transform.DftNormalization;
 import org.apache.commons.math3.transform.FastFourierTransformer;
 import org.apache.commons.math3.transform.TransformType;
-import org.apache.commons.math3.util.FastMath;
+
 
 /**
  * Single entry-point with static helpers for the most common DSP tasks.
@@ -84,7 +84,7 @@ public final class DSP {
         double[] mag = magnitudeSpectrum(signal);
         double[] db = new double[mag.length];
         for (int i = 0; i < mag.length; i++) {
-            db[i] = mag[i] > 0 ? DB_MULTIPLIER * FastMath.log10(mag[i] / refLevel) : DB_MIN;
+            db[i] = mag[i] > 0 ? DB_MULTIPLIER * Math.log10(mag[i] / refLevel) : DB_MIN;
         }
         return db;
     }
@@ -198,6 +198,21 @@ public final class DSP {
      * @return mono {@code double} samples averaged across channels
      */
     public static double[] bytesToSamples(byte[] bytes, int channels, int fftSize, int bytesPerSample) {
+        return bytesToSamples(bytes, channels, fftSize, bytesPerSample, true);
+    }
+
+    /**
+     * Convert byte pairs (signed 16-bit) to normalised {@code double} samples,
+     * with configurable endianness.
+     *
+     * @param bytes      raw audio bytes
+     * @param channels   number of interleaved channels (1 = mono, 2 = stereo)
+     * @param fftSize    number of output samples to produce
+     * @param bytesPerSample bytes per single-channel sample (typically 2 for 16-bit)
+     * @param bigEndian  true for big-endian byte order, false for little-endian
+     * @return mono {@code double} samples averaged across channels
+     */
+    public static double[] bytesToSamples(byte[] bytes, int channels, int fftSize, int bytesPerSample, boolean bigEndian) {
         Preconditions.checkNotNull(bytes, "bytes");
         Preconditions.checkArgument(channels >= 1 && channels <= 2, "channels must be 1 or 2");
         Preconditions.checkArgument(fftSize > 0, "fftSize must be > 0");
@@ -209,13 +224,20 @@ public final class DSP {
         double[] samples = new double[fftSize];
         for (int i = 0; i < fftSize; i++) {
             if (channels == 2) {
-                int left = (bytes[i * 4] << 8) | (bytes[i * 4 + 1] & 0xFF);
-                int right = (bytes[i * 4 + 2] << 8) | (bytes[i * 4 + 3] & 0xFF);
+                int left = readSample16(bytes, i * bytesPerSample * 2, bigEndian);
+                int right = readSample16(bytes, i * bytesPerSample * 2 + bytesPerSample, bigEndian);
                 samples[i] = (left + right) / 2.0;
             } else {
-                samples[i] = (bytes[i * 2] << 8) | (bytes[i * 2 + 1] & 0xFF);
+                samples[i] = readSample16(bytes, i * bytesPerSample, bigEndian);
             }
         }
         return samples;
+    }
+
+    private static int readSample16(byte[] buffer, int offset, boolean bigEndian) {
+        if (bigEndian) {
+            return (buffer[offset] << 8) | (buffer[offset + 1] & 0xFF);
+        }
+        return (buffer[offset] & 0xFF) | (buffer[offset + 1] << 8);
     }
 }

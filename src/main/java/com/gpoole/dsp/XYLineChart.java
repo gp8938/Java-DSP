@@ -62,16 +62,6 @@ public class XYLineChart {
         }
     }
 
-    private static class DbFormatter extends javafx.scene.chart.NumberAxis.DefaultFormatter {
-        DbFormatter() {
-            super(new NumberAxis(), "", "");
-        }
-        @Override
-        public String toString(Number value) {
-            return value.intValue() + " dB";
-        }
-    }
-
     public Node getNode() {
         return chart;
     }

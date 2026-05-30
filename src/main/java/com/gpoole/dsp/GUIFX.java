@@ -28,7 +28,7 @@ import javax.sound.sampled.TargetDataLine;
 import org.apache.commons.math3.transform.DftNormalization;
 import org.apache.commons.math3.transform.FastFourierTransformer;
 import org.apache.commons.math3.transform.TransformType;
-import org.apache.commons.math3.util.FastMath;
+
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
@@ -37,7 +37,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import com.gpoole.dsp.util.Preconditions;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -110,7 +109,7 @@ public class GUIFX extends Application {
         executionPeriodField = createReadOnlyTextField();
         samplePeriodField = createReadOnlyTextField();
 
-        bytesPerSampleSpinner = new Spinner<>(1, 4, 2);
+        bytesPerSampleSpinner = new Spinner<>(2, 2, 2);
 
         int r = 0;
         controls.add(new Label("Audio Source:"), 0, r);
@@ -265,49 +264,20 @@ public class GUIFX extends Application {
             return;
         }
 
-        Mixer.Info selectedMixerInfo = null;
-        for (Mixer.Info mi : AudioSystem.getMixerInfo()) {
-            if (mi.getName().equals(selectedSource)) { selectedMixerInfo = mi; break; }
-        }
-        if (selectedMixerInfo == null) {
-            showError("Device Unavailable", "Selected audio source is no longer available.");
-            return;
-        }
+        Mixer mixer = resolveMixer(selectedSource);
+        if (mixer == null) return;
 
-        Mixer mixer = AudioSystem.getMixer(selectedMixerInfo);
         int sampleRate = Integer.parseInt(samplingFrequencyComboBox.getSelectionModel().getSelectedItem());
         final int bytes = bytesPerSampleSpinner.getValue();
-        final AudioFormat requestedFormat = new AudioFormat((float) sampleRate, bytes * 8, channels, true, true);
 
-        AudioFormat fallbackFormat = requestedFormat;
-        if (!mixer.isLineSupported(new DataLine.Info(TargetDataLine.class, fallbackFormat))) {
-            Line.Info[] lineInfos = mixer.getTargetLineInfo();
-            boolean found = false;
-            for (Line.Info info : lineInfos) {
-                if (info instanceof DataLine.Info) {
-                    AudioFormat[] formats = ((DataLine.Info) info).getFormats();
-                    for (AudioFormat f : formats) {
-                        if (f.getEncoding() == AudioFormat.Encoding.PCM_SIGNED && f.getSampleRate() > 0) {
-                            fallbackFormat = f;
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (found) break;
-                }
-            }
-            if (!mixer.isLineSupported(new DataLine.Info(TargetDataLine.class, fallbackFormat))) {
-                showError("Unsupported Format", "No supported audio format found for this device.");
-                return;
-            }
-        }
+        AudioFormat format = negotiateFormat(mixer, sampleRate, bytes);
+        if (format == null) return;
 
         try {
-            final TargetDataLine microphone = (TargetDataLine) mixer.getLine(new DataLine.Info(TargetDataLine.class, fallbackFormat));
+            final AudioFormat finalFormat = format;
+            final TargetDataLine microphone = (TargetDataLine) mixer.getLine(new DataLine.Info(TargetDataLine.class, finalFormat));
             microphone.open();
             microphone.start();
-
-            final AudioFormat finalFormat = fallbackFormat;
 
             isCapturing.set(true);
             captureButton.setDisable(true);
@@ -320,9 +290,6 @@ public class GUIFX extends Application {
             samplePeriodField.setText(String.format("%.2f us", MICROSECONDS_PER_SECOND / finalFormat.getSampleRate()));
             bitsPerSampleField.setText(String.valueOf(finalFormat.getSampleSizeInBits()));
             channelsField.setText(String.valueOf(finalFormat.getChannels()));
-
-            // Update device info before starting thread
-            updateDeviceInfo();
 
             // Lock configuration at capture start
             final int lockedFftSize = Integer.parseInt(fftSizeComboBox.getSelectionModel().getSelectedItem());
@@ -361,7 +328,7 @@ public class GUIFX extends Application {
                             decodeSamples(audioByteBuffer, audioBuffer, lockedFftSize,
                                          lockedBytesPerSample, channels, bigEndian);
 
-                            applyHammingWindow(audioBuffer);
+                            com.gpoole.dsp.signal.WindowFunction.HAMMING.apply(audioBuffer);
                             double frequency = fs.extractFrequency(audioBuffer, (int) finalFormat.getSampleRate());
                             long now = System.currentTimeMillis();
                             if (now - lastUiUpdateTime >= UI_UPDATE_INTERVAL_MS) {
@@ -412,29 +379,8 @@ public class GUIFX extends Application {
 
     private void decodeSamples(byte[] audioByteBuffer, double[] audioBuffer, int fftSize,
                                int bytesPerSample, int channels, boolean bigEndian) {
-        for (int i = 0; i < fftSize; i++) {
-            if (channels == 2) {
-                int leftSample = readSample(audioByteBuffer, i * bytesPerSample * 2, bytesPerSample, bigEndian);
-                int rightSample = readSample(audioByteBuffer, i * bytesPerSample * 2 + bytesPerSample, bytesPerSample, bigEndian);
-                audioBuffer[i] = (leftSample + rightSample) / 2.0;
-            } else {
-                audioBuffer[i] = readSample(audioByteBuffer, i * bytesPerSample, bytesPerSample, bigEndian);
-            }
-        }
-    }
-
-    private int readSample(byte[] buffer, int offset, int bytesPerSample, boolean bigEndian) {
-        Preconditions.checkArgument(bytesPerSample == 2,
-                "Only 16-bit (2-byte) samples are supported, got " + bytesPerSample);
-        if (bigEndian) {
-            int sample = buffer[offset] << 8;
-            sample |= buffer[offset + 1] & 0xFF;
-            return sample;
-        } else {
-            int sample = buffer[offset] & 0xFF;
-            sample |= buffer[offset + 1] << 8;
-            return sample;
-        }
+        double[] decoded = com.gpoole.dsp.signal.DSP.bytesToSamples(audioByteBuffer, channels, fftSize, bytesPerSample, bigEndian);
+        System.arraycopy(decoded, 0, audioBuffer, 0, fftSize);
     }
 
     private void stopCapture() {
@@ -447,6 +393,38 @@ public class GUIFX extends Application {
         statusLabel.setText("Stopped");
     }
 
+    private Mixer resolveMixer(String sourceName) {
+        for (Mixer.Info mi : AudioSystem.getMixerInfo()) {
+            if (mi.getName().equals(sourceName)) return AudioSystem.getMixer(mi);
+        }
+        showError("Device Unavailable", "Selected audio source is no longer available.");
+        return null;
+    }
+
+    private AudioFormat negotiateFormat(Mixer mixer, int sampleRate, int bytes) {
+        AudioFormat requested = new AudioFormat((float) sampleRate, bytes * 8, channels, true, true);
+        if (mixer.isLineSupported(new DataLine.Info(TargetDataLine.class, requested))) {
+            return requested;
+        }
+        AudioFormat fallback = requested;
+        for (Line.Info info : mixer.getTargetLineInfo()) {
+            if (info instanceof DataLine.Info) {
+                for (AudioFormat f : ((DataLine.Info) info).getFormats()) {
+                    if (f.getEncoding() == AudioFormat.Encoding.PCM_SIGNED && f.getSampleRate() > 0) {
+                        fallback = f;
+                        break;
+                    }
+                }
+                if (fallback != requested) break;
+            }
+        }
+        if (mixer.isLineSupported(new DataLine.Info(TargetDataLine.class, fallback))) {
+            return fallback;
+        }
+        showError("Unsupported Format", "No supported audio format found for this device.");
+        return null;
+    }
+
     private void showError(String title, String message) {
         Platform.runLater(() -> {
             Alert a = new Alert(Alert.AlertType.ERROR);
@@ -455,19 +433,6 @@ public class GUIFX extends Application {
             a.setContentText(message);
             a.showAndWait();
         });
-    }
-
-    private void updateDeviceInfo() {
-        Platform.runLater(() -> {
-            fftVendorField.setText("Apache Commons Math");
-            fftProcessorField.setText("Pure Java FFT");
-            openCLVersionField.setText("N/A");
-            driverVersionField.setText("N/A");
-        });
-    }
-
-    private void applyHammingWindow(double[] samples) {
-        com.gpoole.dsp.signal.WindowFunction.HAMMING.apply(samples);
     }
 
     public class FrequencyScanner {
@@ -491,87 +456,99 @@ public class GUIFX extends Application {
 
         public double extractFrequency(double[] sampleData, int sampleRate) throws InterruptedException, IOException {
             long startTime = System.currentTimeMillis();
+            prepareFftBuffer(sampleData);
 
+            org.apache.commons.math3.complex.Complex[] fftResult = fft.transform(fftBuffer, TransformType.FORWARD);
+            int spectrumLength = fftResult.length / 2;
+            double[] magnitudes = computeMagnitudes(fftResult, spectrumLength);
+            int maxInd = findPeakIndex(magnitudes, spectrumLength);
+            toDecibels(magnitudes);
+
+            xy.setData(magnitudes, sampleRate);
+            updateExecutionPeriod(startTime);
+
+            if (maxInd > 0) {
+                double frequency = (double) (sampleRate * maxInd / fftResult.length);
+                return smoothFrequency(frequency);
+            }
+            return lastFrequency;
+        }
+
+        private void prepareFftBuffer(double[] sampleData) {
             int n = sampleData.length;
-            int powerOf2 = fftBuffer.length;
-
-            // Copy to pre-allocated buffer and pad with zeros
             System.arraycopy(sampleData, 0, fftBuffer, 0, n);
-            // Normalize 16-bit samples to [-1.0, 1.0] for meaningful FFT scale
             double scale = 32768.0;
             for (int i = 0; i < n; i++) {
                 fftBuffer[i] /= scale;
             }
-            for (int i = n; i < powerOf2; i++) {
+            for (int i = n; i < fftBuffer.length; i++) {
                 fftBuffer[i] = 0.0;
             }
+        }
 
-            org.apache.commons.math3.complex.Complex[] fftResult = fft.transform(fftBuffer, TransformType.FORWARD);
-            int spectrumLength = fftResult.length / 2;
+        private double[] computeMagnitudes(org.apache.commons.math3.complex.Complex[] fftResult, int spectrumLength) {
             double[] magnitudes = new double[spectrumLength];
-            double maxMag = Double.NEGATIVE_INFINITY;
-            int maxInd = -1;
-            double mean = 0.0;
-
-            // Skip DC component (i=0)
             for (int i = 1; i < spectrumLength; i++) {
-                double real = fftResult[i].getReal();
-                double imag = fftResult[i].getImaginary();
-                double mag = Math.sqrt(real * real + imag * imag);
-                mean += mag;
-                magnitudes[i] = mag;
+                magnitudes[i] = fftResult[i].abs();
             }
+            return magnitudes;
+        }
 
-            double avgMag = mean / (spectrumLength - 1);
-            double threshold = avgMag * NOISE_THRESHOLD_MULTIPLIER;
-
+        private int findPeakIndex(double[] magnitudes, int spectrumLength) {
+            double mean = 0.0;
+            for (int i = 1; i < spectrumLength; i++) {
+                mean += magnitudes[i];
+            }
+            double threshold = (mean / (spectrumLength - 1)) * NOISE_THRESHOLD_MULTIPLIER;
+            int maxInd = -1;
+            double maxMag = Double.NEGATIVE_INFINITY;
             for (int i = 1; i < spectrumLength; i++) {
                 if (magnitudes[i] > threshold && magnitudes[i] > maxMag) {
                     maxMag = magnitudes[i];
                     maxInd = i;
                 }
             }
+            return maxInd;
+        }
 
-            // Normalize to peak magnitude for relative dB display
-            double peakMag = maxMag > 0 ? maxMag : 1.0;
+        private void toDecibels(double[] magnitudes) {
+            double peakMag = Double.NEGATIVE_INFINITY;
+            for (double m : magnitudes) {
+                if (m > peakMag) peakMag = m;
+            }
+            peakMag = peakMag > 0 ? peakMag : 1.0;
             for (int i = 0; i < magnitudes.length; i++) {
-                if (magnitudes[i] > 0) {
-                    magnitudes[i] = 20 * FastMath.log10(magnitudes[i] / peakMag);
-                } else {
-                    magnitudes[i] = MAGNITUDE_FLOOR_DB;
-                }
+                magnitudes[i] = magnitudes[i] > 0
+                    ? 20 * Math.log10(magnitudes[i] / peakMag)
+                    : MAGNITUDE_FLOOR_DB;
             }
+        }
 
-            xy.setData(magnitudes, sampleRate);
-            long endTime = System.currentTimeMillis();
-            long now2 = System.currentTimeMillis();
-            if (now2 - lastPeriodUpdateTime >= PERIOD_UPDATE_INTERVAL_MS) {
-                lastPeriodUpdateTime = now2;
-                Platform.runLater(() -> executionPeriodField.setText((endTime - startTime) + "ms"));
+        private void updateExecutionPeriod(long startTime) {
+            long now = System.currentTimeMillis();
+            if (now - lastPeriodUpdateTime >= PERIOD_UPDATE_INTERVAL_MS) {
+                lastPeriodUpdateTime = now;
+                Platform.runLater(() -> executionPeriodField.setText((now - startTime) + "ms"));
             }
+        }
 
-            if (maxInd > 0) {
-                double frequency = (double) (sampleRate * maxInd / fftResult.length);
-                if (filled) {
-                    recentFrequencies[freqIndex] = frequency;
-                    freqIndex = (freqIndex + 1) % smoothingSamples;
-                    double smoothed = 0;
-                    for (double f : recentFrequencies) smoothed += f;
-                    smoothed /= smoothingSamples;
-                    lastFrequency = smoothed;
-                    return smoothed;
-                }
-
-                // Fill phase — collect samples without averaging
+        private double smoothFrequency(double frequency) {
+            if (filled) {
                 recentFrequencies[freqIndex] = frequency;
-                freqIndex++;
-                if (freqIndex == smoothingSamples) {
-                    filled = true;
-                    freqIndex = 0;
-                }
-                return frequency;
+                freqIndex = (freqIndex + 1) % smoothingSamples;
+                double smoothed = 0;
+                for (double f : recentFrequencies) smoothed += f;
+                smoothed /= smoothingSamples;
+                lastFrequency = smoothed;
+                return smoothed;
             }
-            return lastFrequency;
+            recentFrequencies[freqIndex] = frequency;
+            freqIndex++;
+            if (freqIndex == smoothingSamples) {
+                filled = true;
+                freqIndex = 0;
+            }
+            return frequency;
         }
     }
 
