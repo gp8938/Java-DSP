@@ -76,4 +76,22 @@ public final class Preconditions {
         checkArgument(sampleRate > 0 && sampleRate <= 384_000,
                 "Sample rate must be in (0, 384000], got " + sampleRate);
     }
+
+    /**
+     * Validates that every element in an array is finite (not NaN or infinite).
+     *
+     * @param array the array to validate
+     * @param name  human-readable name for error messages
+     * @throws NullPointerException     if {@code array} is null
+     * @throws IllegalArgumentException if any element is NaN or infinite
+     */
+    public static void checkArrayFinite(double[] array, String name) {
+        checkNotNull(array, name);
+        for (int i = 0; i < array.length; i++) {
+            if (!Double.isFinite(array[i])) {
+                throw new IllegalArgumentException(
+                        name + " contains non-finite value at index " + i + ": " + array[i]);
+            }
+        }
+    }
 }

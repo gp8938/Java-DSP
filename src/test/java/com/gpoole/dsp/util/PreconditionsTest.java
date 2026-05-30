@@ -71,6 +71,33 @@ class PreconditionsTest {
     }
 
     @Test
+    void checkArrayFiniteRejectsNaN() {
+        double[] arr = {1.0, Double.NaN, 3.0};
+        assertThrows(IllegalArgumentException.class,
+                () -> Preconditions.checkArrayFinite(arr, "test"));
+    }
+
+    @Test
+    void checkArrayFiniteRejectsInf() {
+        double[] arr = {1.0, Double.POSITIVE_INFINITY, 3.0};
+        assertThrows(IllegalArgumentException.class,
+                () -> Preconditions.checkArrayFinite(arr, "test"));
+    }
+
+    @Test
+    void checkArrayFiniteRejectsNegInf() {
+        double[] arr = {1.0, Double.NEGATIVE_INFINITY, 3.0};
+        assertThrows(IllegalArgumentException.class,
+                () -> Preconditions.checkArrayFinite(arr, "test"));
+    }
+
+    @Test
+    void checkArrayFiniteAcceptsNormal() {
+        double[] arr = {1.0, -2.5, 3.14, 0.0};
+        assertDoesNotThrow(() -> Preconditions.checkArrayFinite(arr, "test"));
+    }
+
+    @Test
     void checkSampleRateFails() {
         assertThrows(IllegalArgumentException.class, () -> Preconditions.checkSampleRate(0));
         assertThrows(IllegalArgumentException.class, () -> Preconditions.checkSampleRate(-1));

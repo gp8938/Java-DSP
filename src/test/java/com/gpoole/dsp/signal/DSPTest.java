@@ -81,6 +81,13 @@ class DSPTest {
         assertEquals(0.0, DSP.dominantFrequency(silence, 48_000));
     }
 
+    @Test
+    void dominantFrequencyNaNInputThrows() {
+        double[] signal = {1.0, Double.NaN, 3.0};
+        assertThrows(IllegalArgumentException.class,
+                () -> DSP.dominantFrequency(signal, 48000));
+    }
+
     // -------- frequencyBins ----------------------------------------------
 
     @Test
@@ -157,6 +164,13 @@ class DSPTest {
     void nullSignalThrows() {
         assertThrows(NullPointerException.class,
                 () -> DSP.magnitudeSpectrum(null));
+    }
+
+    @Test
+    void magnitudeSpectrumNaNInputThrows() {
+        double[] signal = {1.0, Double.NaN, 3.0};
+        assertThrows(IllegalArgumentException.class,
+                () -> DSP.magnitudeSpectrum(signal));
     }
 
     @Test

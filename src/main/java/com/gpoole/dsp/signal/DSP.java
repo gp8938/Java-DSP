@@ -47,6 +47,7 @@ public final class DSP {
      */
     public static double[] magnitudeSpectrum(double[] signal) {
         Preconditions.checkArrayLength(signal, 1, "signal");
+        Preconditions.checkArrayFinite(signal, "signal");
         double[] padded = zeroPadToPowerOfTwo(signal);
         Complex[] fft = FFT.transform(padded, TransformType.FORWARD);
         int half = fft.length / 2 + 1;
@@ -122,6 +123,7 @@ public final class DSP {
      */
     public static double dominantFrequency(double[] signal, double samplingRate, WindowFunction window) {
         Preconditions.checkArrayLength(signal, 2, "signal");
+        Preconditions.checkArrayFinite(signal, "signal");
         Preconditions.checkSampleRate(samplingRate);
         Preconditions.checkNotNull(window, "window");
 
