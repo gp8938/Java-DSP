@@ -52,6 +52,12 @@
             <version>5.14.3</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>net.jqwik</groupId>
+            <artifactId>jqwik</artifactId>
+            <version>1.8.4</version>
+            <scope>test</scope>
+        </dependency>
         <!-- JavaFX dependencies (platform classifier selected for macOS Apple Silicon) -->
         <dependency>
             <groupId>org.openjfx</groupId>
@@ -95,6 +101,13 @@
                 <configuration>
                     <!-- Preserve any existing argLine (e.g. jacoco) and add headless flag for forked JVMs -->
                     <argLine>${argLine} -Djava.awt.headless=true</argLine>
+                    <includes>
+                        <include>**/Test*.java</include>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                        <include>**/*TestCase.java</include>
+                        <include>**/*PropertyTest.java</include>
+                    </includes>
                 </configuration>
             </plugin>
             <plugin>
