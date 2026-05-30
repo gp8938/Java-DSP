@@ -131,6 +131,26 @@ class DSPTest {
         assertEquals(512.0, samples[1], 1e-10);
     }
 
+    // -------- bytesToSamples validation ----------------------------------
+
+    @Test
+    void bytesToSamplesRejectsNon16Bit() {
+        byte[] bytes = new byte[256];
+        assertThrows(IllegalArgumentException.class,
+                () -> DSP.bytesToSamples(bytes, 1, 64, 1));
+        assertThrows(IllegalArgumentException.class,
+                () -> DSP.bytesToSamples(bytes, 1, 64, 3));
+        assertThrows(IllegalArgumentException.class,
+                () -> DSP.bytesToSamples(bytes, 1, 64, 4));
+    }
+
+    @Test
+    void bytesToSamplesRejectsTooSmallBuffer() {
+        byte[] bytes = new byte[4];
+        assertThrows(IllegalArgumentException.class,
+                () -> DSP.bytesToSamples(bytes, 1, 64, 2));
+    }
+
     // -------- validation -------------------------------------------------
 
     @Test

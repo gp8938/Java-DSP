@@ -22,6 +22,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.gpoole.dsp.util.Preconditions;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -400,18 +401,15 @@ public class GUIFX extends Application {
     }
 
     private int readSample(byte[] buffer, int offset, int bytesPerSample, boolean bigEndian) {
+        Preconditions.checkArgument(bytesPerSample == 2,
+                "Only 16-bit (2-byte) samples are supported, got " + bytesPerSample);
         if (bigEndian) {
             int sample = buffer[offset] << 8;
-            if (bytesPerSample > 1) {
-                sample |= (buffer[offset + 1] & 0xFF);
-            }
+            sample |= (buffer[offset + 1] & 0xFF);
             return sample;
         } else {
-            // Little-endian: LSB first
             int sample = buffer[offset] & 0xFF;
-            if (bytesPerSample > 1) {
-                sample |= (buffer[offset + 1] << 8);
-            }
+            sample |= (buffer[offset + 1] << 8);
             return sample;
         }
     }

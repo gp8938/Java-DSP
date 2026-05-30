@@ -199,18 +199,19 @@ public final class DSP {
         Preconditions.checkNotNull(bytes, "bytes");
         Preconditions.checkArgument(channels >= 1 && channels <= 2, "channels must be 1 or 2");
         Preconditions.checkArgument(fftSize > 0, "fftSize must be > 0");
+        Preconditions.checkArgument(bytesPerSample == 2,
+                "Only 16-bit (2-byte) samples are supported, got " + bytesPerSample);
+        Preconditions.checkArgument(bytes.length >= fftSize * channels * bytesPerSample,
+                "byte array too small: need " + (fftSize * channels * bytesPerSample) + " bytes, got " + bytes.length);
 
         double[] samples = new double[fftSize];
         for (int i = 0; i < fftSize; i++) {
             if (channels == 2) {
-                int left = (bytes[i * bytesPerSample * 2] << 8)
-                        | (bytes[i * bytesPerSample * 2 + 1] & 0xFF);
-                int right = (bytes[i * bytesPerSample * 2 + bytesPerSample] << 8)
-                        | (bytes[i * bytesPerSample * 2 + bytesPerSample + 1] & 0xFF);
+                int left = (bytes[i * 4] << 8) | (bytes[i * 4 + 1] & 0xFF);
+                int right = (bytes[i * 4 + 2] << 8) | (bytes[i * 4 + 3] & 0xFF);
                 samples[i] = (left + right) / 2.0;
             } else {
-                samples[i] = (bytes[i * bytesPerSample] << 8)
-                        | (bytes[i * bytesPerSample + 1] & 0xFF);
+                samples[i] = (bytes[i * 2] << 8) | (bytes[i * 2 + 1] & 0xFF);
             }
         }
         return samples;
