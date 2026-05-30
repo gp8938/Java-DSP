@@ -191,7 +191,7 @@ public class GUIFX extends Application {
             for (Mixer.Info mi : mixers) {
                 try {
                     Mixer m = AudioSystem.getMixer(mi);
-                    if (m.getTargetLineInfo().length > 0) {
+                    if (hasTargetDataLine(m)) {
                         audioSourceComboBox.getItems().add(mi.getName());
                         added++;
                     }
@@ -209,6 +209,15 @@ public class GUIFX extends Application {
             statusLabel.setText("Error: Could not enumerate audio devices");
             Logger.getLogger(GUIFX.class.getName()).log(Level.SEVERE, "Failed to populate audio sources", ex);
         }
+    }
+
+    private static boolean hasTargetDataLine(Mixer m) {
+        for (Line.Info info : m.getTargetLineInfo()) {
+            if (info instanceof DataLine.Info di && TargetDataLine.class.isAssignableFrom(di.getLineClass())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void updateSamplingFrequencies() {
