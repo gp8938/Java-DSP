@@ -70,10 +70,7 @@ public class GUIFX extends Application {
     private ComboBox<String> samplingFrequencyComboBox;
     private ComboBox<String> fftSizeComboBox;
     private TextField mainFrequencyField;
-    private TextField fftVendorField;
-    private TextField fftProcessorField;
-    private TextField openCLVersionField;
-    private TextField driverVersionField;
+
     private TextField channelsField;
     private TextField bitsPerSampleField;
     private TextField executionPeriodField;
@@ -100,10 +97,7 @@ public class GUIFX extends Application {
         fftSizeComboBox.getSelectionModel().select("2048");
 
         mainFrequencyField = createReadOnlyTextField();
-        fftVendorField = createReadOnlyTextField();
-        fftProcessorField = createReadOnlyTextField();
-        openCLVersionField = createReadOnlyTextField();
-        driverVersionField = createReadOnlyTextField();
+
         channelsField = createReadOnlyTextField();
         bitsPerSampleField = createReadOnlyTextField();
         executionPeriodField = createReadOnlyTextField();
