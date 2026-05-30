@@ -39,6 +39,32 @@ class WindowFunctionTest {
     }
 
     @Test
+    void hammingGoldenValues() {
+        double[] w = WindowFunction.HAMMING.getCoefficients(8);
+        double[] expected = {
+            0.0800, 0.2532, 0.6424, 0.9544,
+            0.9544, 0.6424, 0.2532, 0.0800
+        };
+        for (int i = 0; i < w.length; i++) {
+            assertEquals(expected[i], w[i], 0.01,
+                    "Hamming at index " + i);
+        }
+    }
+
+    @Test
+    void hanningGoldenValues() {
+        double[] w = WindowFunction.HANNING.getCoefficients(8);
+        double[] expected = {
+            0.0000, 0.1883, 0.6113, 0.9505,
+            0.9505, 0.6113, 0.1883, 0.0000
+        };
+        for (int i = 0; i < w.length; i++) {
+            assertEquals(expected[i], w[i], 0.01,
+                    "Hanning at index " + i);
+        }
+    }
+
+    @Test
     void hammingEdgeValues() {
         double[] w = WindowFunction.HAMMING.getCoefficients(SIZE);
         // Hamming edges should be approximately 0.08

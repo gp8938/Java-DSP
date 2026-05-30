@@ -61,6 +61,40 @@ class DSPTest {
                 "Peak bin should match the cosine frequency bin");
     }
 
+    @Test
+    void goldenValueExactBinMagnitudeSpectrum() {
+        double sampleRate = 48000;
+        int n = 2048;
+        int expectedBin = 37;
+        double freq = expectedBin * sampleRate / n;
+
+        double[] signal = new double[n];
+        for (int i = 0; i < n; i++) {
+            signal[i] = Math.cos(2.0 * Math.PI * freq * i / sampleRate);
+        }
+
+        double[] mag = DSP.magnitudeSpectrum(signal);
+
+        int peakBin = 0;
+        double peakVal = 0;
+        for (int i = 0; i < mag.length; i++) {
+            if (mag[i] > peakVal) {
+                peakVal = mag[i];
+                peakBin = i;
+            }
+        }
+        assertEquals(expectedBin, peakBin, "Peak at exact bin");
+
+        // For an exact bin frequency with rectangular window (no window applied),
+        // energy should concentrate entirely in the expected bin.
+        for (int i = 0; i < mag.length; i++) {
+            if (i != expectedBin) {
+                assertEquals(0.0, mag[i], 1e-10,
+                        "Bin " + i + " should have near-zero magnitude");
+            }
+        }
+    }
+
     // -------- dominantFrequency ------------------------------------------
 
     @Test
