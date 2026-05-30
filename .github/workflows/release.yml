@@ -33,15 +33,13 @@ jobs:
     
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ steps.get_version.outputs.version }}
+        name: Release ${{ steps.get_version.outputs.version }}
         body_path: changelog.txt
         draft: false
         prerelease: false
+        token: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-upload:
     needs: create-release
@@ -52,12 +50,15 @@ jobs:
           - os: ubuntu-latest
             artifact_name: java-dsp-linux
             asset_name: java-dsp-${{ needs.create-release.outputs.version }}-linux.jar
+            javafx_platform: linux
           - os: macos-latest
             artifact_name: java-dsp-macos
             asset_name: java-dsp-${{ needs.create-release.outputs.version }}-macos.jar
+            javafx_platform: mac-aarch64
           - os: windows-latest
             artifact_name: java-dsp-windows
             asset_name: java-dsp-${{ needs.create-release.outputs.version }}-windows.jar
+            javafx_platform: win
     
     steps:
     - name: Checkout code
@@ -76,7 +77,7 @@ jobs:
         mvn versions:commit
     
     - name: Build with Maven
-      run: mvn clean package -DskipTests
+      run: mvn clean package -DskipTests -Djavafx.platform=${{ matrix.javafx_platform }}
     
     - name: Run tests
       run: mvn test
@@ -85,13 +86,25 @@ jobs:
       shell: bash
       run: |
         cp target/DSP-Java-*.jar ${{ matrix.asset_name }}
-    
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./${{ matrix.asset_name }}
-        asset_name: ${{ matrix.asset_name }}
-        asset_content_type: application/java-archive
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.asset_name }}
+
+  upload-release-assets:
+    needs: [create-release, build-and-upload]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+        merge-multiple: true
+
+    - name: Upload Release Assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./artifacts/*.jar
+        token: ${{ secrets.GITHUB_TOKEN }}

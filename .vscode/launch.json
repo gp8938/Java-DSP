@@ -1,0 +1,47 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Launch Java Program",
+            "request": "launch",
+            "mainClass": ""
+        },
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Run GUIFX (JavaFX GUI) - Maven",
+            "request": "launch",
+            "mainClass": "com.gpoole.dsp.GUIFX",
+            "projectName": "DSP-Java",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "preLaunchTask": "compile-javafx"
+        },
+        {
+            "type": "java",
+            "name": "Debug GUIFX (JavaFX GUI)",
+            "request": "launch",
+            "mainClass": "com.gpoole.dsp.GUIFX",
+            "projectName": "DSP-Java",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "Run All Tests",
+            "request": "launch",
+            "mainClass": "",
+            "projectName": "DSP-Java",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "maven-test"
+        }
+    ]
+}
