@@ -68,9 +68,9 @@
     </dependencies>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+        <maven.compiler.release>25</maven.compiler.release>
         <!-- JavaFX properties (pick a widely-available OpenJFX release) -->
         <javafx.version>20.0.2</javafx.version>
         <javafx.platform>mac-aarch64</javafx.platform>
