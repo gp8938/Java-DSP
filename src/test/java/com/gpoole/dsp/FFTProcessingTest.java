@@ -78,10 +78,7 @@ public class FFTProcessingTest {
         }
         
         // Apply Hamming window
-        for (int i = 0; i < samples.length; i++) {
-            double window = 0.54 - 0.46 * Math.cos(2 * Math.PI * i / (samples.length - 1));
-            samples[i] *= window;
-        }
+        com.gpoole.dsp.signal.WindowFunction.HAMMING.apply(samples);
         
         // Check that edges are reduced
         assertTrue(samples[0] < 0.1, "Window should reduce edge values");
