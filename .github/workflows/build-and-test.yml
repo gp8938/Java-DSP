@@ -38,6 +38,7 @@ jobs:
         cache: 'maven'
 
     - name: Build, test, and verify with Maven
+      shell: bash
       run: mvn --batch-mode verify -Djava.awt.headless=true -Djavafx.platform=${{ matrix.javafx-platform }}
 
     - name: Upload test results
