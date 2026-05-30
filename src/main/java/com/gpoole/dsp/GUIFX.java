@@ -460,6 +460,7 @@ public class GUIFX extends Application {
         private final FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
         private final double[] recentFrequencies;
         private int freqIndex = 0;
+        private boolean filled = false;
         private double lastFrequency = 0;
         private final int smoothingSamples;
         private final double[] fftBuffer;
@@ -481,6 +482,11 @@ public class GUIFX extends Application {
 
             // Copy to pre-allocated buffer and pad with zeros
             System.arraycopy(sampleData, 0, fftBuffer, 0, n);
+            // Normalize 16-bit samples to [-1.0, 1.0] for meaningful FFT scale
+            double scale = 32768.0;
+            for (int i = 0; i < n; i++) {
+                fftBuffer[i] /= scale;
+            }
             for (int i = n; i < powerOf2; i++) {
                 fftBuffer[i] = 0.0;
             }
@@ -531,13 +537,24 @@ public class GUIFX extends Application {
 
             if (maxInd > 0) {
                 double frequency = (double) (sampleRate * maxInd / fftResult.length);
+                if (filled) {
+                    recentFrequencies[freqIndex] = frequency;
+                    freqIndex = (freqIndex + 1) % smoothingSamples;
+                    double smoothed = 0;
+                    for (double f : recentFrequencies) smoothed += f;
+                    smoothed /= smoothingSamples;
+                    lastFrequency = smoothed;
+                    return smoothed;
+                }
+
+                // Fill phase — collect samples without averaging
                 recentFrequencies[freqIndex] = frequency;
-                freqIndex = (freqIndex + 1) % smoothingSamples;
-                double smoothed = 0;
-                for (double f : recentFrequencies) smoothed += f;
-                smoothed /= smoothingSamples;
-                lastFrequency = smoothed;
-                return smoothed;
+                freqIndex++;
+                if (freqIndex == smoothingSamples) {
+                    filled = true;
+                    freqIndex = 0;
+                }
+                return frequency;
             }
             return lastFrequency;
         }
