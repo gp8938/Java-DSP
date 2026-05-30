@@ -10,5 +10,15 @@
         <module name="IllegalImport">
             <property name="illegalPkgs" value="sun.*"/>
         </module>
+        <module name="JavadocStyle"/>
+        <module name="ModifierOrder"/>
+        <module name="RedundantModifier"/>
+        <module name="EqualsAvoidNull"/>
+        <module name="EmptyStatement"/>
+        <module name="MultipleVariableDeclarations"/>
+        <module name="SimplifyBooleanExpression"/>
+        <module name="SimplifyBooleanReturn"/>
+        <module name="StringLiteralEquality"/>
+        <module name="UnnecessaryParentheses"/>
     </module>
 </module>

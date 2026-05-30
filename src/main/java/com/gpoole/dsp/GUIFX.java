@@ -2,14 +2,29 @@ package com.gpoole.dsp;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.scene.layout.Priority;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-import javax.sound.sampled.*;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.Line;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.Mixer;
+import javax.sound.sampled.TargetDataLine;
 import org.apache.commons.math3.transform.DftNormalization;
 import org.apache.commons.math3.transform.FastFourierTransformer;
 import org.apache.commons.math3.transform.TransformType;
@@ -413,11 +428,11 @@ public class GUIFX extends Application {
                 "Only 16-bit (2-byte) samples are supported, got " + bytesPerSample);
         if (bigEndian) {
             int sample = buffer[offset] << 8;
-            sample |= (buffer[offset + 1] & 0xFF);
+            sample |= buffer[offset + 1] & 0xFF;
             return sample;
         } else {
             int sample = buffer[offset] & 0xFF;
-            sample |= (buffer[offset + 1] << 8);
+            sample |= buffer[offset + 1] << 8;
             return sample;
         }
     }
