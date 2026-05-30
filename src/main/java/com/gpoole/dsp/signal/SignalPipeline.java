@@ -77,6 +77,9 @@ public final class SignalPipeline {
             for (int i = 0; i < s.length; i++) {
                 s[i] -= dc;
             }
+            if (s.length > 0 && java.util.Arrays.stream(s).anyMatch(v -> !Double.isFinite(v))) {
+                java.util.Arrays.fill(s, 0.0);
+            }
             return s;
         });
         return this;
@@ -93,6 +96,9 @@ public final class SignalPipeline {
             for (double v : s) peak = Math.max(peak, Math.abs(v));
             if (peak > 0) {
                 for (int i = 0; i < s.length; i++) s[i] /= peak;
+            }
+            if (s.length > 0 && java.util.Arrays.stream(s).anyMatch(v -> !Double.isFinite(v))) {
+                java.util.Arrays.fill(s, 0.0);
             }
             return s;
         });

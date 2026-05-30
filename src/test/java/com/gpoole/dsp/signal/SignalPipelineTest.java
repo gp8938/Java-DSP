@@ -118,6 +118,18 @@ class SignalPipelineTest {
                 () -> SignalPipeline.of(new double[]{1}, -100));
     }
 
+    @Test
+    void pipelineWithNaNInputProducesZeros() {
+        double[] signal = {Double.NaN, Double.NaN, Double.NaN, Double.NaN};
+        double[] result = SignalPipeline.of(signal, 48000)
+                .removeDC()
+                .normalise()
+                .execute();
+        for (double v : result) {
+            assertEquals(0.0, v, 1e-15);
+        }
+    }
+
     // -------- test tone validation with pipeline ---------------------------
 
     @Test

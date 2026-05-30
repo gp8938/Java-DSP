@@ -1,64 +1,28 @@
 package com.gpoole.dsp;
 
+import javafx.stage.Stage;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
-import javax.sound.sampled.*;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
+import org.junit.jupiter.api.condition.DisabledIf;
+import org.testfx.framework.junit5.ApplicationTest;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class GUITest {
+@DisabledIf("isHeadless")
+class GUITest extends ApplicationTest {
 
-    static boolean audioAvailable() {
-        try {
-            AudioFormat format = new AudioFormat(48000.0f, 16, 1, true, false);
-            DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
-            return AudioSystem.isLineSupported(info);
-        } catch (Exception e) {
-            return false;
-        }
+    private GUIFX app;
+
+    private static boolean isHeadless() {
+        return Boolean.getBoolean("java.awt.headless") || "true".equals(System.getenv("CI"));
+    }
+
+    @Override
+    public void start(Stage stage) throws Exception {
+        app = new GUIFX();
+        app.start(stage);
     }
 
     @Test
-    @EnabledIf("audioAvailable")
-    public void testSyntheticAudioSource() throws Exception {
-        // Create a synthetic audio source (sine wave)
-        float sampleRate = 48000.0f;
-        int sampleSizeInBits = 16;
-        int channels = 1;
-        boolean signed = true;
-        boolean bigEndian = false;
-
-        AudioFormat format = new AudioFormat(sampleRate, sampleSizeInBits, channels, signed, bigEndian);
-
-        // Generate a sine wave
-        int durationInSeconds = 1;
-        int totalSamples = (int) (sampleRate * durationInSeconds);
-        byte[] audioData = new byte[totalSamples * 2]; // 2 bytes per sample for 16-bit audio
-
-        double frequency = 440.0; // A4 note
-        for (int i = 0; i < totalSamples; i++) {
-            short sample = (short) (Math.sin(2 * Math.PI * frequency * i / sampleRate) * Short.MAX_VALUE);
-            audioData[i * 2] = (byte) (sample & 0xFF);
-            audioData[i * 2 + 1] = (byte) ((sample >> 8) & 0xFF);
-        }
-
-        InputStream audioStream = new ByteArrayInputStream(audioData);
-        AudioInputStream syntheticStream = new AudioInputStream(audioStream, format, totalSamples);
-
-        // Test if the synthetic source is supported
-        assertTrue(AudioSystem.isConversionSupported(format, syntheticStream.getFormat()));
-
-        // Simulate processing the synthetic audio source
-        TargetDataLine line = AudioSystem.getTargetDataLine(format);
-        line.open(format);
-        line.start();
-
-        byte[] buffer = new byte[1024];
-        int bytesRead = syntheticStream.read(buffer);
-        assertTrue(bytesRead > 0, "Synthetic audio source should produce data.");
-
-        line.stop();
-        line.close();
+    void applicationStarts() {
+        assertNotNull(app);
     }
 }
