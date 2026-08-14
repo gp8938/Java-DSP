@@ -1,10 +1,13 @@
 package com.gpoole.dsp.signal;
 
-import com.gpoole.dsp.util.Preconditions;
 import org.apache.commons.math3.complex.Complex;
 import org.apache.commons.math3.transform.DftNormalization;
 import org.apache.commons.math3.transform.FastFourierTransformer;
 import org.apache.commons.math3.transform.TransformType;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Objects;
 
 
 /**
@@ -46,8 +49,15 @@ public final class DSP {
      * @return magnitude values for bins 0 … N/2
      */
     public static double[] magnitudeSpectrum(double[] signal) {
-        Preconditions.checkArrayLength(signal, 1, "signal");
-        Preconditions.checkArrayFinite(signal, "signal");
+        Objects.requireNonNull(signal, "signal");
+        if (signal.length < 1) {
+            throw new IllegalArgumentException("signal length must be >= 1, got " + signal.length);
+        }
+        for (double v : signal) {
+            if (!Double.isFinite(v)) {
+                throw new IllegalArgumentException("signal contains non-finite value: " + v);
+            }
+        }
         double[] padded = zeroPadToPowerOfTwo(signal);
         Complex[] fft = FFT.transform(padded, TransformType.FORWARD);
         int half = fft.length / 2 + 1;
@@ -80,7 +90,9 @@ public final class DSP {
      * @return dB values for bins 0 … N/2
      */
     public static double[] powerSpectrumDB(double[] signal, double refLevel) {
-        Preconditions.checkArgument(refLevel > 0, "refLevel must be > 0");
+        if (refLevel <= 0) {
+            throw new IllegalArgumentException("refLevel must be > 0");
+        }
         double[] mag = magnitudeSpectrum(signal);
         double[] db = new double[mag.length];
         for (int i = 0; i < mag.length; i++) {
@@ -97,8 +109,12 @@ public final class DSP {
      * @return array of frequencies, length = fftLength / 2 + 1
      */
     public static double[] frequencyBins(int fftLength, double samplingRate) {
-        Preconditions.checkPowerOfTwo(fftLength);
-        Preconditions.checkSampleRate(samplingRate);
+        if (fftLength <= 0 || (fftLength & (fftLength - 1)) != 0) {
+            throw new IllegalArgumentException("Length must be a power of 2, got " + fftLength);
+        }
+        if (samplingRate <= 0 || samplingRate > 384_000) {
+            throw new IllegalArgumentException("Sample rate must be in (0, 384000], got " + samplingRate);
+        }
         int half = fftLength / 2 + 1;
         double[] bins = new double[half];
         for (int i = 0; i < half; i++) {
@@ -112,22 +128,29 @@ public final class DSP {
     /**
      * Find the dominant frequency in a real signal using FFT peak detection.
      * <p>
-     * Applies the given window, performs FFT, and returns the frequency of the
+     * Applies a Hamming window, performs FFT, and returns the frequency of the
      * bin with the highest magnitude above a noise threshold (3× mean magnitude).
      * </p>
      *
      * @param signal       time-domain samples
      * @param samplingRate sampling rate in Hz
-     * @param window       window function to apply (use {@link WindowFunction#RECTANGULAR} for none)
      * @return dominant frequency in Hz, or 0.0 if no peak above the noise floor
      */
-    public static double dominantFrequency(double[] signal, double samplingRate, WindowFunction window) {
-        Preconditions.checkArrayLength(signal, 2, "signal");
-        Preconditions.checkArrayFinite(signal, "signal");
-        Preconditions.checkSampleRate(samplingRate);
-        Preconditions.checkNotNull(window, "window");
+    public static double dominantFrequency(double[] signal, double samplingRate) {
+        Objects.requireNonNull(signal, "signal");
+        if (signal.length < 2) {
+            throw new IllegalArgumentException("signal length must be >= 2, got " + signal.length);
+        }
+        for (double v : signal) {
+            if (!Double.isFinite(v)) {
+                throw new IllegalArgumentException("signal contains non-finite value: " + v);
+            }
+        }
+        if (samplingRate <= 0 || samplingRate > 384_000) {
+            throw new IllegalArgumentException("Sample rate must be in (0, 384000], got " + samplingRate);
+        }
 
-        double[] windowed = window.applyCopy(signal);
+        double[] windowed = WindowFunction.HAMMING.applyCopy(signal);
         double[] padded = zeroPadToPowerOfTwo(windowed);
         Complex[] fft = FFT.transform(padded, TransformType.FORWARD);
 
@@ -154,17 +177,6 @@ public final class DSP {
         return 0.0;
     }
 
-    /**
-     * Convenience overload that defaults to a {@link WindowFunction#HAMMING} window.
-     *
-     * @param signal       time-domain samples
-     * @param samplingRate sampling rate in Hz
-     * @return dominant frequency in Hz
-     */
-    public static double dominantFrequency(double[] signal, double samplingRate) {
-        return dominantFrequency(signal, samplingRate, WindowFunction.HAMMING);
-    }
-
     // -------- Utilities --------------------------------------------------
 
     /**
@@ -174,10 +186,10 @@ public final class DSP {
      * @return padded array (or the original if it is already a power of 2)
      */
     public static double[] zeroPadToPowerOfTwo(double[] data) {
-        Preconditions.checkNotNull(data, "data");
+        Objects.requireNonNull(data, "data");
         int n = data.length;
-        int padded = 1;
-        while (padded < n) {
+        int padded = Integer.highestOneBit(n);
+        if (padded < n) {
             padded <<= 1;
         }
         if (padded == n) {
@@ -213,31 +225,31 @@ public final class DSP {
      * @return mono {@code double} samples averaged across channels
      */
     public static double[] bytesToSamples(byte[] bytes, int channels, int fftSize, int bytesPerSample, boolean bigEndian) {
-        Preconditions.checkNotNull(bytes, "bytes");
-        Preconditions.checkArgument(channels >= 1 && channels <= 2, "channels must be 1 or 2");
-        Preconditions.checkArgument(fftSize > 0, "fftSize must be > 0");
-        Preconditions.checkArgument(bytesPerSample == 2,
-                "Only 16-bit (2-byte) samples are supported, got " + bytesPerSample);
-        Preconditions.checkArgument(bytes.length >= fftSize * channels * bytesPerSample,
-                "byte array too small: need " + (fftSize * channels * bytesPerSample) + " bytes, got " + bytes.length);
+        Objects.requireNonNull(bytes, "bytes");
+        if (channels < 1 || channels > 2) {
+            throw new IllegalArgumentException("channels must be 1 or 2");
+        }
+        if (fftSize <= 0) {
+            throw new IllegalArgumentException("fftSize must be > 0");
+        }
+        if (bytesPerSample != 2) {
+            throw new IllegalArgumentException("Only 16-bit (2-byte) samples are supported, got " + bytesPerSample);
+        }
+        if (bytes.length < fftSize * channels * bytesPerSample) {
+            throw new IllegalArgumentException("byte array too small: need " + (fftSize * channels * bytesPerSample) + " bytes, got " + bytes.length);
+        }
 
+        ByteBuffer buffer = ByteBuffer.wrap(bytes).order(bigEndian ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN);
         double[] samples = new double[fftSize];
         for (int i = 0; i < fftSize; i++) {
             if (channels == 2) {
-                int left = readSample16(bytes, i * bytesPerSample * 2, bigEndian);
-                int right = readSample16(bytes, i * bytesPerSample * 2 + bytesPerSample, bigEndian);
+                short left = buffer.getShort();
+                short right = buffer.getShort();
                 samples[i] = (left + right) / 2.0;
             } else {
-                samples[i] = readSample16(bytes, i * bytesPerSample, bigEndian);
+                samples[i] = buffer.getShort();
             }
         }
         return samples;
-    }
-
-    private static int readSample16(byte[] buffer, int offset, boolean bigEndian) {
-        if (bigEndian) {
-            return (buffer[offset] << 8) | (buffer[offset + 1] & 0xFF);
-        }
-        return (buffer[offset] & 0xFF) | (buffer[offset + 1] << 8);
     }
 }

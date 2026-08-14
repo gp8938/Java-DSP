@@ -104,7 +104,7 @@ class DSPTest {
         double freq = 440.0;
         double[] signal = generateCosine(freq, sampleRate, n);
 
-        double detected = DSP.dominantFrequency(signal, sampleRate, WindowFunction.RECTANGULAR);
+        double detected = DSP.dominantFrequency(signal, sampleRate);
         assertEquals(freq, detected, sampleRate / n,
                 "Should detect 440 Hz within one bin resolution");
     }

@@ -139,9 +139,7 @@ flowchart LR
 - **GUIFX.java**: Main JavaFX application window with audio capture and control logic
 - **XYLineChart.java**: JavaFX chart component with update throttling, thread safety, gridlines, and normalized dB display
 - **signal.DSP**: Static utility class for FFT, power spectra, and frequency detection
-- **signal.SignalPipeline**: Fluent builder API for chaining DSP operations
-- **signal.WindowFunction**: Enum of standard window functions (Hamming, Hanning, Blackman, Flat-top)
-- **util.Preconditions**: Shared input-validation utility for fail-fast error reporting
+- **signal.WindowFunction**: Hamming window function for reduced spectral leakage
 - **FFT Processing**: Apache Commons Math FastFourierTransformer
 - **Audio API**: javax.sound.sampled for cross-platform audio capture
 
@@ -155,14 +153,9 @@ import com.gpoole.dsp.signal.*;
 // One-shot: detect the dominant frequency of an audio buffer
 double freq = DSP.dominantFrequency(samples, 48_000);
 
-// Pipeline: chain window → DC removal → power spectrum
-double[] spectrum = SignalPipeline.of(samples, 48_000)
-        .window(WindowFunction.HAMMING)
-        .removeDC()
-        .executeToPowerSpectrumDB(0.776);
-
-// Available windows: RECTANGULAR, HAMMING, HANNING, BLACKMAN, FLAT_TOP
-double[] coefficients = WindowFunction.BLACKMAN.getCoefficients(1024);
+// Direct: apply window → compute power spectrum
+double[] windowed = WindowFunction.HAMMING.applyCopy(samples);
+double[] spectrum = DSP.powerSpectrumDB(windowed, 0.776);
 ```
 
 ### Dependencies
@@ -202,8 +195,7 @@ Java-DSP/
 │   │   ├── XYLineChart.java              # JavaFX chart component
 │   │   ├── signal/
 │   │   │   ├── DSP.java                  # Static DSP helpers (FFT, spectra)
-│   │   │   ├── SignalPipeline.java       # Fluent pipeline builder
-│   │   │   └── WindowFunction.java       # Window function enum
+│   │   │   └── WindowFunction.java       # Hamming window function
 │   │   └── util/
 │   │       └── Preconditions.java        # Input validation
 │   └── test/java/com/gpoole/dsp/
@@ -212,10 +204,9 @@ Java-DSP/
 │       ├── XYLineChartTest.java
 │       ├── signal/
 │       │   ├── DSPTest.java
-│       │   ├── SignalPipelineTest.java
 │       │   └── WindowFunctionTest.java
 │       └── util/
-│           └── PreconditionsTest.java
+│           └── DSPPropertyTest.java
 ├── .github/workflows/
 │   ├── build-and-test.yml        # CI pipeline
 │   ├── release.yml               # Release automation
