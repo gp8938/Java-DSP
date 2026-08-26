@@ -57,7 +57,7 @@
         <maven.compiler.target>25</maven.compiler.target>
         <maven.compiler.release>25</maven.compiler.release>
         <!-- JavaFX properties (pick a widely-available OpenJFX release) -->
-        <javafx.version>26.0.1</javafx.version>
+        <javafx.version>26.0.2</javafx.version>
         <javafx.platform>mac-aarch64</javafx.platform>
     </properties>
     <name>DSP-Java</name>
