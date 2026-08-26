@@ -30,7 +30,6 @@ import org.apache.commons.math3.transform.FastFourierTransformer;
 import org.apache.commons.math3.transform.TransformType;
 
 
-import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -348,12 +347,6 @@ public class GUIFX extends Application {
                             }
                         }
                     }
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                } catch (IOException ex) {
-                    if (isCapturing.get()) {
-                        Logger.getLogger(GUIFX.class.getName()).log(Level.WARNING, "Error during capture", ex);
-                    }
                 } finally {
                     try {
                         microphone.stop();
@@ -457,7 +450,7 @@ public class GUIFX extends Application {
             this.fftBuffer = new double[powerOf2];
         }
 
-        public double extractFrequency(double[] sampleData, int sampleRate) throws InterruptedException, IOException {
+        public double extractFrequency(double[] sampleData, int sampleRate) {
             long startTime = System.currentTimeMillis();
             prepareFftBuffer(sampleData);
 
