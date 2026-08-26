@@ -167,7 +167,7 @@ class DSPTest {
     void bytesToSamplesMono() {
         // 16-bit big-endian: value = 256 → bytes [0x01, 0x00]
         byte[] bytes = {0x01, 0x00, 0x02, 0x00};
-        double[] samples = DSP.bytesToSamples(bytes, 1, 2, 2);
+        double[] samples = DSP.bytesToSamples(bytes, 1, 2, 2, true);
         assertEquals(256.0, samples[0], 1e-10);
         assertEquals(512.0, samples[1], 1e-10);
     }
@@ -178,18 +178,18 @@ class DSPTest {
     void bytesToSamplesRejectsNon16Bit() {
         byte[] bytes = new byte[256];
         assertThrows(IllegalArgumentException.class,
-                () -> DSP.bytesToSamples(bytes, 1, 64, 1));
+                () -> DSP.bytesToSamples(bytes, 1, 64, 1, true));
         assertThrows(IllegalArgumentException.class,
-                () -> DSP.bytesToSamples(bytes, 1, 64, 3));
+                () -> DSP.bytesToSamples(bytes, 1, 64, 3, true));
         assertThrows(IllegalArgumentException.class,
-                () -> DSP.bytesToSamples(bytes, 1, 64, 4));
+                () -> DSP.bytesToSamples(bytes, 1, 64, 4, true));
     }
 
     @Test
     void bytesToSamplesRejectsTooSmallBuffer() {
         byte[] bytes = new byte[4];
         assertThrows(IllegalArgumentException.class,
-                () -> DSP.bytesToSamples(bytes, 1, 64, 2));
+                () -> DSP.bytesToSamples(bytes, 1, 64, 2, true));
     }
 
     // -------- validation -------------------------------------------------

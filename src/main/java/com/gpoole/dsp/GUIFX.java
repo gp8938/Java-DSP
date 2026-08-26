@@ -25,10 +25,8 @@ import javax.sound.sampled.Line;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.TargetDataLine;
-import org.apache.commons.math3.transform.DftNormalization;
-import org.apache.commons.math3.transform.FastFourierTransformer;
-import org.apache.commons.math3.transform.TransformType;
-
+import com.gpoole.dsp.signal.DSP;
+import com.gpoole.dsp.signal.WindowFunction;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -126,7 +124,7 @@ public class GUIFX extends Application {
         stopButton = new Button("Stop");
         stopButton.setDisable(true);
         captureButton.setOnAction(e -> onCaptureButtonClicked());
-        stopButton.setOnAction(e -> onStopButtonClicked());
+        stopButton.setOnAction(e -> stopCapture());
 
         HBox buttons = new HBox(6, captureButton, stopButton);
         controls.add(buttons, 0, r, 2, 1);
@@ -249,10 +247,6 @@ public class GUIFX extends Application {
         }
     }
 
-    private void onStopButtonClicked() {
-        stopCapture();
-    }
-
     private void onCaptureButtonClicked() {
         if (isCapturing.get()) return;
 
@@ -311,7 +305,6 @@ public class GUIFX extends Application {
 
             captureExecutor.submit(() -> {
                 try {
-                    FrequencyScanner fs = new FrequencyScanner(lockedFftSize);
                     final int bytesPerFrame = channels * lockedBytesPerSample;
 
                     while (isCapturing.get()) {
@@ -327,11 +320,12 @@ public class GUIFX extends Application {
                             }
 
                             // Decode audio samples with proper endianness
-                            decodeSamples(audioByteBuffer, audioBuffer, lockedFftSize,
-                                         lockedBytesPerSample, channels, bigEndian);
+                            System.arraycopy(
+                                    DSP.bytesToSamples(audioByteBuffer, channels, lockedFftSize, lockedBytesPerSample, bigEndian),
+                                    0, audioBuffer, 0, lockedFftSize);
 
-                            com.gpoole.dsp.signal.WindowFunction.HAMMING.apply(audioBuffer);
-                            double frequency = fs.extractFrequency(audioBuffer, (int) finalFormat.getSampleRate());
+                            WindowFunction.HAMMING.apply(audioBuffer);
+                            double frequency = processFrame(audioBuffer, (int) finalFormat.getSampleRate());
                             long now = System.currentTimeMillis();
                             if (now - lastUiUpdateTime >= UI_UPDATE_INTERVAL_MS) {
                                 lastUiUpdateTime = now;
@@ -371,12 +365,6 @@ public class GUIFX extends Application {
             Logger.getLogger(GUIFX.class.getName()).log(Level.SEVERE, "Audio line unavailable", ex);
             showError("Audio Device Error", "Unable to access the audio input device.\nError: " + ex.getMessage());
         }
-    }
-
-    private void decodeSamples(byte[] audioByteBuffer, double[] audioBuffer, int fftSize,
-                               int bytesPerSample, int channels, boolean bigEndian) {
-        double[] decoded = com.gpoole.dsp.signal.DSP.bytesToSamples(audioByteBuffer, channels, fftSize, bytesPerSample, bigEndian);
-        System.arraycopy(decoded, 0, audioBuffer, 0, fftSize);
     }
 
     private void stopCapture() {
@@ -431,121 +419,89 @@ public class GUIFX extends Application {
         });
     }
 
-    public class FrequencyScanner {
+    // -------- per-frame spectrum analysis (delegates to DSP) --------------
 
-        private final FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
-        private final double[] recentFrequencies;
-        private int freqIndex = 0;
-        private boolean filled = false;
-        private double lastFrequency = 0;
-        private final int smoothingSamples;
-        private final double[] fftBuffer;
+    private final double[] recentFrequencies = new double[FREQUENCY_SMOOTHING_SAMPLES];
+    private int freqIndex = 0;
+    private boolean freqWindowFilled = false;
+    private double lastFrequency = 0;
 
-        public FrequencyScanner(int fftSize) {
-            this.smoothingSamples = FREQUENCY_SMOOTHING_SAMPLES;
-            this.recentFrequencies = new double[smoothingSamples];
-            // Pre-allocate FFT buffer at exact power of 2
-            int powerOf2 = 1;
-            while (powerOf2 < fftSize) powerOf2 <<= 1;
-            this.fftBuffer = new double[powerOf2];
+    /**
+     * Analyse one windowed frame: update the spectrum chart and
+     * execution-period readout, and return the smoothed dominant frequency.
+     */
+    private double processFrame(double[] buffer, int sampleRate) {
+        long startTime = System.currentTimeMillis();
+
+        double[] mag = DSP.magnitudeSpectrum(buffer);
+        int peakBin = findPeakBinAboveNoiseFloor(mag);
+        toDecibels(mag);
+
+        xy.setData(mag, sampleRate);
+        updateExecutionPeriod(startTime);
+
+        if (peakBin > 0) {
+            double frequency = sampleRate * (double) peakBin / (2 * (mag.length - 1));
+            lastFrequency = smoothFrequency(frequency);
         }
+        return lastFrequency;
+    }
 
-        public double extractFrequency(double[] sampleData, int sampleRate) {
-            long startTime = System.currentTimeMillis();
-            prepareFftBuffer(sampleData);
-
-            org.apache.commons.math3.complex.Complex[] fftResult = fft.transform(fftBuffer, TransformType.FORWARD);
-            int spectrumLength = fftResult.length / 2;
-            double[] magnitudes = computeMagnitudes(fftResult, spectrumLength);
-            int maxInd = findPeakIndex(magnitudes, spectrumLength);
-            toDecibels(magnitudes);
-
-            xy.setData(magnitudes, sampleRate);
-            updateExecutionPeriod(startTime);
-
-            if (maxInd > 0) {
-                double frequency = (double) (sampleRate * maxInd / fftResult.length);
-                return smoothFrequency(frequency);
-            }
-            return lastFrequency;
+    private int findPeakBinAboveNoiseFloor(double[] magnitudes) {
+        double mean = 0.0;
+        for (int i = 1; i < magnitudes.length; i++) {
+            mean += magnitudes[i];
         }
-
-        private void prepareFftBuffer(double[] sampleData) {
-            int n = sampleData.length;
-            System.arraycopy(sampleData, 0, fftBuffer, 0, n);
-            double scale = 32768.0;
-            for (int i = 0; i < n; i++) {
-                fftBuffer[i] /= scale;
-            }
-            for (int i = n; i < fftBuffer.length; i++) {
-                fftBuffer[i] = 0.0;
+        double threshold = (mean / (magnitudes.length - 1)) * NOISE_THRESHOLD_MULTIPLIER;
+        int maxInd = -1;
+        double maxMag = Double.NEGATIVE_INFINITY;
+        for (int i = 1; i < magnitudes.length; i++) {
+            if (magnitudes[i] > threshold && magnitudes[i] > maxMag) {
+                maxMag = magnitudes[i];
+                maxInd = i;
             }
         }
+        return maxInd;
+    }
 
-        private double[] computeMagnitudes(org.apache.commons.math3.complex.Complex[] fftResult, int spectrumLength) {
-            double[] magnitudes = new double[spectrumLength];
-            for (int i = 1; i < spectrumLength; i++) {
-                magnitudes[i] = fftResult[i].abs();
-            }
-            return magnitudes;
+    private void toDecibels(double[] magnitudes) {
+        double peakMag = Double.NEGATIVE_INFINITY;
+        for (double m : magnitudes) {
+            if (m > peakMag) peakMag = m;
         }
-
-        private int findPeakIndex(double[] magnitudes, int spectrumLength) {
-            double mean = 0.0;
-            for (int i = 1; i < spectrumLength; i++) {
-                mean += magnitudes[i];
-            }
-            double threshold = (mean / (spectrumLength - 1)) * NOISE_THRESHOLD_MULTIPLIER;
-            int maxInd = -1;
-            double maxMag = Double.NEGATIVE_INFINITY;
-            for (int i = 1; i < spectrumLength; i++) {
-                if (magnitudes[i] > threshold && magnitudes[i] > maxMag) {
-                    maxMag = magnitudes[i];
-                    maxInd = i;
-                }
-            }
-            return maxInd;
+        peakMag = peakMag > 0 ? peakMag : 1.0;
+        for (int i = 0; i < magnitudes.length; i++) {
+            magnitudes[i] = magnitudes[i] > 0
+                ? 20 * Math.log10(magnitudes[i] / peakMag)
+                : MAGNITUDE_FLOOR_DB;
         }
+    }
 
-        private void toDecibels(double[] magnitudes) {
-            double peakMag = Double.NEGATIVE_INFINITY;
-            for (double m : magnitudes) {
-                if (m > peakMag) peakMag = m;
-            }
-            peakMag = peakMag > 0 ? peakMag : 1.0;
-            for (int i = 0; i < magnitudes.length; i++) {
-                magnitudes[i] = magnitudes[i] > 0
-                    ? 20 * Math.log10(magnitudes[i] / peakMag)
-                    : MAGNITUDE_FLOOR_DB;
-            }
+    private void updateExecutionPeriod(long startTime) {
+        long now = System.currentTimeMillis();
+        if (now - lastPeriodUpdateTime >= PERIOD_UPDATE_INTERVAL_MS) {
+            lastPeriodUpdateTime = now;
+            Platform.runLater(() -> executionPeriodField.setText((now - startTime) + "ms"));
         }
+    }
 
-        private void updateExecutionPeriod(long startTime) {
-            long now = System.currentTimeMillis();
-            if (now - lastPeriodUpdateTime >= PERIOD_UPDATE_INTERVAL_MS) {
-                lastPeriodUpdateTime = now;
-                Platform.runLater(() -> executionPeriodField.setText((now - startTime) + "ms"));
-            }
-        }
-
-        private double smoothFrequency(double frequency) {
-            if (filled) {
-                recentFrequencies[freqIndex] = frequency;
-                freqIndex = (freqIndex + 1) % smoothingSamples;
-                double smoothed = 0;
-                for (double f : recentFrequencies) smoothed += f;
-                smoothed /= smoothingSamples;
-                lastFrequency = smoothed;
-                return smoothed;
-            }
+    private double smoothFrequency(double frequency) {
+        if (freqWindowFilled) {
             recentFrequencies[freqIndex] = frequency;
-            freqIndex++;
-            if (freqIndex == smoothingSamples) {
-                filled = true;
-                freqIndex = 0;
-            }
-            return frequency;
+            freqIndex = (freqIndex + 1) % FREQUENCY_SMOOTHING_SAMPLES;
+            double smoothed = 0;
+            for (double f : recentFrequencies) smoothed += f;
+            smoothed /= FREQUENCY_SMOOTHING_SAMPLES;
+            lastFrequency = smoothed;
+            return smoothed;
         }
+        recentFrequencies[freqIndex] = frequency;
+        freqIndex++;
+        if (freqIndex == FREQUENCY_SMOOTHING_SAMPLES) {
+            freqWindowFilled = true;
+            freqIndex = 0;
+        }
+        return frequency;
     }
 
     public static void main(String[] args) {

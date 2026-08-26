@@ -201,19 +201,6 @@ public final class DSP {
     }
 
     /**
-     * Convert byte pairs (big-endian, signed 16-bit) to normalised {@code double} samples.
-     *
-     * @param bytes      raw audio bytes
-     * @param channels   number of interleaved channels (1 = mono, 2 = stereo)
-     * @param fftSize    number of output samples to produce
-     * @param bytesPerSample bytes per single-channel sample (typically 2 for 16-bit)
-     * @return mono {@code double} samples averaged across channels
-     */
-    public static double[] bytesToSamples(byte[] bytes, int channels, int fftSize, int bytesPerSample) {
-        return bytesToSamples(bytes, channels, fftSize, bytesPerSample, true);
-    }
-
-    /**
      * Convert byte pairs (signed 16-bit) to normalised {@code double} samples,
      * with configurable endianness.
      *
