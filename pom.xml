@@ -36,6 +36,13 @@
             <version>4.0.18</version>
             <scope>test</scope>
         </dependency>
+        <!-- Headless JavaFX toolkit (Monocle) so TestFX tests run on display-less CI -->
+        <dependency>
+            <groupId>org.testfx</groupId>
+            <artifactId>openjfx-monocle</artifactId>
+            <version>21.0.2</version>
+            <scope>test</scope>
+        </dependency>
         <!-- JavaFX dependencies (platform classifier selected for macOS Apple Silicon) -->
         <dependency>
             <groupId>org.openjfx</groupId>
@@ -73,6 +80,13 @@
                 <configuration>
                     <!-- Preserve any existing argLine (e.g. jacoco) and add headless flag for forked JVMs -->
                     <argLine>${argLine} -Djava.awt.headless=true</argLine>
+                    <!-- Run JavaFX/TestFX tests headless via Monocle (works with and without a display) -->
+                    <systemPropertyVariables>
+                        <testfx.headless>true</testfx.headless>
+                        <glass.platform>Monocle</glass.platform>
+                        <monocle.platform>Headless</monocle.platform>
+                        <prism.order>sw</prism.order>
+                    </systemPropertyVariables>
                     <includes>
                         <include>**/Test*.java</include>
                         <include>**/*Test.java</include>
